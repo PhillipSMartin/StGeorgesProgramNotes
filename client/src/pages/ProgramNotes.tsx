@@ -33,7 +33,8 @@ export default function ProgramNotes() {
   }, []);
 
   const displayPieces = pieces || [];
-  const introContent = introData?.published ? introData.content : null;
+  const hasPublishedPieces = displayPieces.some(p => p.published);
+  const introContent = introData?.content && (introData.published || !hasPublishedPieces) ? introData.content : null;
 
   return (
     <div className={cn(

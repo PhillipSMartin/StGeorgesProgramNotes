@@ -31,25 +31,25 @@ export default function Landing() {
       <div className="absolute bottom-[10%] right-[10%] w-[30%] h-[30%] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
       <motion.div 
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="text-center mb-12 max-w-md mx-auto relative z-10"
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="text-center mb-8 max-w-md mx-auto relative z-10"
       >
         {/* Placeholder for Logo - styled text for now */}
-        <div className="mb-6 mx-auto w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-xl shadow-primary/20">
-           <span className="text-3xl font-serif text-white italic font-bold">SG</span>
+        <div className="mb-4 mx-auto w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+           <span className="text-2xl font-serif text-white italic font-bold">SG</span>
         </div>
         
-        <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-foreground tracking-tight mb-4">
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-foreground tracking-tight mb-2">
           St. George's <br/>
           <span className="text-primary italic">Choral Society</span>
         </h1>
         
-        <div className="h-1 w-24 bg-gradient-to-r from-transparent via-secondary to-transparent mx-auto my-6" />
+        <div className="h-0.5 w-16 bg-gradient-to-r from-transparent via-secondary to-transparent mx-auto my-4" />
         
-        <p className="text-muted-foreground font-light text-lg tracking-wide">
-          Welcome to tonight's performance. Please select your preferred language.
+        <p className="text-muted-foreground font-light text-base tracking-wide">
+          Welcome to tonight's performance. <br className="hidden sm:block"/> Please select your preferred language.
         </p>
       </motion.div>
 

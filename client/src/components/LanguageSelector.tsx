@@ -22,37 +22,36 @@ export const LANGUAGES: LanguageOption[] = [
 
 export function LanguageSelector({ onSelect, isLoading }: LanguageSelectorProps) {
   return (
-    <div className="grid gap-4 w-full max-w-sm mx-auto">
+    <div className="grid gap-2 w-full max-w-sm mx-auto">
       {LANGUAGES.map((lang, index) => (
         <motion.button
           key={lang.code}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1, duration: 0.5 }}
+          transition={{ delay: index * 0.05, duration: 0.4 }}
           onClick={() => onSelect(lang)}
           disabled={isLoading}
           className={cn(
-            "group relative overflow-hidden rounded-xl border border-border bg-white/50 p-6 text-left transition-all duration-300 hover:border-primary/50 hover:bg-white hover:shadow-lg hover:shadow-primary/5",
-            "active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed",
+            "group relative overflow-hidden rounded-lg border border-border bg-white/50 p-4 text-left transition-all duration-200 hover:border-primary/50 hover:bg-white hover:shadow-md hover:shadow-primary/5",
+            "active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed",
             "dark:bg-card dark:hover:bg-accent/10"
           )}
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="block text-sm font-medium uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-baseline gap-3">
+              <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors whitespace-nowrap">
                 {lang.label}
               </span>
               <span className={cn(
-                "block mt-1 text-2xl font-serif text-foreground font-medium",
-                lang.code === 'fa' && "font-sans" // Use standard font for Farsi to ensure readability
+                "text-xl font-serif text-foreground font-bold",
+                lang.code === 'fa' && "font-sans"
               )}>
                 {lang.nativeLabel}
               </span>
             </div>
             
-            {/* Elegant decorative element */}
-            <div className="h-8 w-8 rounded-full border border-primary/20 flex items-center justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-              <span className="text-primary text-lg">→</span>
+            <div className="h-6 w-6 rounded-full border border-primary/20 flex items-center justify-center opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 shrink-0">
+              <span className="text-primary text-sm">→</span>
             </div>
           </div>
           

@@ -308,7 +308,7 @@ Guidelines:
 - Translate piece titles into ${input.targetLanguageLabel}, followed by the original English title in parentheses. For example: "Translated Title (Original English Title)".
 - Keep composer names in their original Latin-script form (do not transliterate).
 - Preserve opus numbers (e.g., Op. 26, K. 626).
-- When a piece title appears within the notes text, use the translated title — do NOT leave it in English or break it apart across the sentence.
+- When a piece title appears within the notes text, use ONLY the translated title without any English parenthetical. The English original should only appear in the "title" field, never repeated inside "notes".
 - The notes and intro fields should contain properly formatted HTML with <p> tags for paragraphs.
 
 Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${englishIntro?.content ? ' and an "intro" field containing the translated introductory paragraph' : ''}.`,

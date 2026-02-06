@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { api, type AdminLoginInput, type AdminChangePasswordInput } from "@shared/routes";
-import type { SupportedLanguage, InsertSupportedLanguage, ProgramPiece } from "@shared/schema";
+import type { SupportedLanguage, InsertSupportedLanguage, ProgramPiece, ProgramIntro } from "@shared/schema";
 
 export function useAdminSession() {
   return useQuery<{ authenticated: boolean }>({
@@ -101,6 +101,18 @@ export function useUpdateLanguage() {
   });
 }
 
+export function useAdminIntro(language: string) {
+  return useQuery<ProgramIntro | null>({
+    queryKey: [api.intro.get.path, language],
+    queryFn: async () => {
+      const res = await fetch(`${api.intro.get.path}?language=${encodeURIComponent(language)}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch intro");
+      return res.json();
+    },
+    enabled: !!language,
+  });
+}
+
 export function useAdminPieces(language: string) {
   return useQuery<ProgramPiece[]>({
     queryKey: [api.adminPieces.list.path, language],
@@ -116,13 +128,14 @@ export function useAdminPieces(language: string) {
 export function useSavePieces() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { language: string; pieces: { id?: number; title: string; composer: string; notes: string; pieceOrder: number }[] }) => {
+    mutationFn: async (data: { language: string; intro?: string; pieces: { id?: number; title: string; composer: string; notes: string; pieceOrder: number }[] }) => {
       const res = await apiRequest("POST", api.adminPieces.save.path, data);
       return res.json();
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.adminPieces.list.path, variables.language] });
       queryClient.invalidateQueries({ queryKey: [api.pieces.list.path, variables.language] });
+      queryClient.invalidateQueries({ queryKey: [api.intro.get.path, variables.language] });
     },
   });
 }
@@ -172,7 +185,7 @@ export function useTranslatePieces() {
   return useMutation({
     mutationFn: async (data: { targetLanguage: string; targetLanguageLabel: string }) => {
       const res = await apiRequest("POST", api.adminPieces.translate.path, data);
-      return res.json() as Promise<{ pieces: { title: string; composer: string; notes: string }[] }>;
+      return res.json() as Promise<{ intro?: string; pieces: { title: string; composer: string; notes: string }[] }>;
     },
   });
 }

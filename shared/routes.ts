@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTrackingEventSchema, insertSupportedLanguageSchema, program_pieces, tracking_events, supported_languages } from './schema';
+import { insertTrackingEventSchema, insertSupportedLanguageSchema, program_intro, program_pieces, tracking_events, supported_languages } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -75,6 +75,15 @@ export const api = {
       },
     },
   },
+  intro: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/intro',
+      responses: {
+        200: z.custom<typeof program_intro.$inferSelect>().nullable(),
+      },
+    },
+  },
   pieces: {
     list: {
       method: 'GET' as const,
@@ -98,6 +107,7 @@ export const api = {
       path: '/api/admin/pieces',
       input: z.object({
         language: z.string(),
+        intro: z.string().optional(),
         pieces: z.array(z.object({
           id: z.number().optional(),
           title: z.string(),
@@ -150,6 +160,7 @@ export const api = {
       }),
       responses: {
         200: z.object({
+          intro: z.string().optional(),
           pieces: z.array(z.object({
             title: z.string(),
             composer: z.string(),

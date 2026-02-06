@@ -7,6 +7,7 @@ import Underline from "@tiptap/extension-underline";
 import {
   useAdminSession,
   useAdminLanguages,
+  useAdminIntro,
   useAdminPieces,
   useSavePieces,
   useDeletePiece,
@@ -43,6 +44,7 @@ import {
   GripVertical,
   ChevronDown,
   ChevronUp,
+  BookOpen,
 } from "lucide-react";
 import {
   Dialog,
@@ -277,6 +279,58 @@ function PieceEditor({
   );
 }
 
+function IntroEditor({
+  content,
+  isRTL,
+  onUpdate,
+}: {
+  content: string;
+  isRTL: boolean;
+  onUpdate: (value: string) => void;
+}) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+    ],
+    content,
+    onUpdate: ({ editor: ed }) => {
+      onUpdate(ed.getHTML());
+    },
+  });
+
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
+    }
+  }, [content]);
+
+  return (
+    <Card data-testid="card-intro">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-primary" />
+          <CardTitle className="text-lg">Introduction</CardTitle>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Optional thematic paragraph displayed before the program pieces
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-md overflow-visible" dir={isRTL ? "rtl" : "ltr"}>
+          <MenuBar editor={editor} />
+          <EditorContent
+            editor={editor}
+            className="prose dark:prose-invert max-w-none p-4 min-h-[120px] focus-within:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[100px]"
+            data-testid="editor-intro"
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ContentEditor() {
   const [_, setLocation] = useLocation();
   const [match, params] = useRoute("/admin/content/:lang");
@@ -284,6 +338,7 @@ export default function ContentEditor() {
 
   const { data: session, isLoading: sessionLoading } = useAdminSession();
   const { data: languages } = useAdminLanguages();
+  const { data: introData } = useAdminIntro(langCode);
   const { data: piecesData, isLoading: piecesLoading } = useAdminPieces(langCode);
   const savePiecesMutation = useSavePieces();
   const deletePieceMutation = useDeletePiece();
@@ -292,6 +347,7 @@ export default function ContentEditor() {
   const translateMutation = useTranslatePieces();
   const { toast } = useToast();
 
+  const [introContent, setIntroContent] = useState("");
   const [pieces, setPieces] = useState<PieceFormData[]>([
     { title: "", composer: "", notes: "", pieceOrder: 1 },
   ]);
@@ -308,6 +364,8 @@ export default function ContentEditor() {
       setLocation("/admin");
     }
   }, [session?.authenticated, sessionLoading, setLocation]);
+
+  const [introInitialized, setIntroInitialized] = useState(false);
 
   useEffect(() => {
     if (piecesData && !initialized) {
@@ -328,7 +386,15 @@ export default function ContentEditor() {
   }, [piecesData, initialized]);
 
   useEffect(() => {
+    if (introData !== undefined && !introInitialized) {
+      setIntroContent(introData?.content || "");
+      setIntroInitialized(true);
+    }
+  }, [introData, introInitialized]);
+
+  useEffect(() => {
     setInitialized(false);
+    setIntroInitialized(false);
   }, [langCode]);
 
   const updatePiece = useCallback((index: number, field: keyof PieceFormData, value: string) => {
@@ -380,8 +446,9 @@ export default function ContentEditor() {
     if (!langCode) return;
 
     try {
-      await savePiecesMutation.mutateAsync({
+      const result = await savePiecesMutation.mutateAsync({
         language: langCode,
+        intro: introContent,
         pieces: pieces.map((p, i) => ({
           id: p.id,
           title: p.title,
@@ -390,19 +457,26 @@ export default function ContentEditor() {
           pieceOrder: i + 1,
         })),
       });
+      if (result.pieces) {
+        setPieces(result.pieces.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          composer: p.composer,
+          notes: p.notes,
+          pieceOrder: p.pieceOrder,
+        })));
+      }
       setHasUnsavedChanges(false);
-      setInitialized(false);
-      toast({ title: "Saved", description: "All pieces saved successfully" });
+      toast({ title: "Saved", description: "All content saved successfully" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to save", variant: "destructive" });
     }
-  }, [langCode, pieces, savePiecesMutation, toast]);
+  }, [langCode, introContent, pieces, savePiecesMutation, toast]);
 
   const handlePublish = async () => {
     if (!langCode) return;
     try {
       await publishMutation.mutateAsync(langCode);
-      setInitialized(false);
       toast({ title: "Published", description: `Content published for ${language?.label || langCode}` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to publish", variant: "destructive" });
@@ -413,7 +487,6 @@ export default function ContentEditor() {
     if (!langCode) return;
     try {
       await unpublishMutation.mutateAsync(langCode);
-      setInitialized(false);
       toast({ title: "Unpublished", description: `Content unpublished for ${language?.label || langCode}` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to unpublish", variant: "destructive" });
@@ -434,6 +507,9 @@ export default function ContentEditor() {
           notes: p.notes,
           pieceOrder: i + 1,
         })));
+        if (result.intro) {
+          setIntroContent(result.intro);
+        }
         setHasUnsavedChanges(true);
         toast({ title: "Translation Complete", description: "AI translation loaded. Review and save when ready." });
       }
@@ -562,6 +638,15 @@ export default function ContentEditor() {
               </Card>
             )}
 
+            <IntroEditor
+              content={introContent}
+              isRTL={isRTL ?? false}
+              onUpdate={(value) => {
+                setIntroContent(value);
+                setHasUnsavedChanges(true);
+              }}
+            />
+
             {pieces.map((piece, index) => (
               <PieceEditor
                 key={piece.id ?? `new-${index}`}
@@ -600,6 +685,15 @@ export default function ContentEditor() {
             className={cn("space-y-8 py-4", isRTL && "text-right")}
             dir={isRTL ? "rtl" : "ltr"}
           >
+            {introContent && introContent !== "<p></p>" && (
+              <div className="space-y-3" data-testid="preview-intro">
+                <div
+                  className="prose dark:prose-invert max-w-none text-sm italic text-muted-foreground"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(introContent) }}
+                />
+                <Separator />
+              </div>
+            )}
             {pieces.map((piece, index) => (
               <div key={index} className="space-y-3">
                 {index > 0 && <Separator />}

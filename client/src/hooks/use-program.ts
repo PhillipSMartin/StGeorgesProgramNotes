@@ -1,6 +1,19 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api, type TrackingLogInput } from "@shared/routes";
-import type { ProgramPiece } from "@shared/schema";
+import type { ProgramPiece, ProgramIntro } from "@shared/schema";
+
+export function useProgramIntro(language: string) {
+  return useQuery<ProgramIntro | null>({
+    queryKey: [api.intro.get.path, language],
+    queryFn: async () => {
+      const url = `${api.intro.get.path}?language=${encodeURIComponent(language)}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch intro");
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 60,
+  });
+}
 
 export function useProgramPieces(language: string) {
   return useQuery<ProgramPiece[]>({

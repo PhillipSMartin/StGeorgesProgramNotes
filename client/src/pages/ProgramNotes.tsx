@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useRoute, Link } from "wouter";
-import { useProgramPieces } from "@/hooks/use-program";
+import { useProgramIntro, useProgramPieces } from "@/hooks/use-program";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import type { SupportedLanguage } from "@shared/schema";
@@ -25,6 +25,7 @@ export default function ProgramNotes() {
   const language = dbLanguages?.find(l => l.code === langCode);
   const isRTL = language?.dir === "rtl";
 
+  const { data: introData } = useProgramIntro(langCode);
   const { data: pieces, isLoading } = useProgramPieces(langCode);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function ProgramNotes() {
   }, []);
 
   const displayPieces = pieces || [];
+  const introContent = introData?.published ? introData.content : null;
 
   return (
     <div className={cn(
@@ -89,12 +91,30 @@ export default function ProgramNotes() {
           </div>
         ) : (
           <div className="space-y-12">
+            {introContent && introContent !== "<p></p>" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+                data-testid="program-intro"
+              >
+                <div
+                  className="prose prose-lg dark:prose-invert mx-auto font-sans leading-relaxed text-muted-foreground italic"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(introContent) }}
+                />
+                <div className="flex items-center justify-center mt-8">
+                  <div className="h-px w-16 bg-border" />
+                  <Music className="w-4 h-4 mx-3 text-muted-foreground/50" />
+                  <div className="h-px w-16 bg-border" />
+                </div>
+              </motion.div>
+            )}
             {displayPieces.map((piece, index) => (
               <motion.article
                 key={piece.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + index * 0.15, duration: 0.6 }}
+                transition={{ delay: (introContent ? 0.4 : 0.2) + index * 0.15, duration: 0.6 }}
                 data-testid={`piece-${piece.id}`}
               >
                 {index > 0 && (

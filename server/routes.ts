@@ -27,6 +27,16 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  // === Public: Intro Route (returns intro for a language, always returns data for admin usage) ===
+  app.get(api.intro.get.path, async (req, res) => {
+    const language = req.query.language as string;
+    if (!language) {
+      return res.status(400).json({ message: "Language parameter is required" });
+    }
+    const intro = await storage.getIntro(language);
+    res.json(intro || null);
+  });
+
   // === Public: Pieces Routes (serves published pieces, falls back to all) ===
   app.get(api.pieces.list.path, async (req, res) => {
     const language = req.query.language as string;
@@ -176,6 +186,11 @@ export async function registerRoutes(
   app.post(api.adminPieces.save.path, requireAdmin, async (req, res) => {
     try {
       const input = api.adminPieces.save.input.parse(req.body);
+
+      if (input.intro !== undefined) {
+        await storage.saveIntro(input.language, input.intro);
+      }
+
       const savedPieces = [];
 
       for (const pieceData of input.pieces) {
@@ -204,7 +219,7 @@ export async function registerRoutes(
         savedPieces.push(created);
       }
 
-      res.json({ message: "Pieces saved", pieces: savedPieces });
+      res.json({ message: "Content saved", pieces: savedPieces });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -214,7 +229,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/admin/pieces/:id", requireAdmin, async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     if (isNaN(id)) {
       return res.status(400).json({ message: "Invalid piece ID" });
     }
@@ -228,7 +243,8 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Language is required" });
     }
     await storage.publishPieces(language);
-    res.json({ message: `Pieces published for ${language}` });
+    await storage.publishIntro(language);
+    res.json({ message: `Content published for ${language}` });
   });
 
   app.post(api.adminPieces.unpublish.path, requireAdmin, async (req, res) => {
@@ -237,7 +253,8 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Language is required" });
     }
     await storage.unpublishPieces(language);
-    res.json({ message: `Pieces unpublished for ${language}` });
+    await storage.unpublishIntro(language);
+    res.json({ message: `Content unpublished for ${language}` });
   });
 
   app.post(api.adminPieces.translate.path, requireAdmin, async (req, res) => {
@@ -248,6 +265,8 @@ export async function registerRoutes(
       if (englishPieces.length === 0) {
         return res.status(400).json({ message: "No English pieces found. Please create English content first." });
       }
+
+      const englishIntro = await storage.getIntro("en");
 
       const openai = new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -260,16 +279,21 @@ export async function registerRoutes(
         notes: p.notes,
       }));
 
+      const sourceData: any = { pieces: piecesForTranslation };
+      if (englishIntro?.content) {
+        sourceData.intro = englishIntro.content;
+      }
+
       const response = await openai.chat.completions.create({
         model: "gpt-5-mini",
         messages: [
           {
             role: "system",
-            content: `You are a professional translator specializing in classical music and concert program notes. Translate the following concert program pieces from English to ${input.targetLanguageLabel}. Maintain the formal, elegant tone appropriate for concert programs. Preserve any musical terms, opus numbers, and proper names. Return your response as a JSON object with a "pieces" array, where each element has "title", "composer", and "notes" fields. The notes fields should contain properly formatted HTML with <p> tags for paragraphs.`,
+            content: `You are a professional translator specializing in classical music and concert program notes. Translate the following concert program content from English to ${input.targetLanguageLabel}. Maintain the formal, elegant tone appropriate for concert programs. Preserve any musical terms, opus numbers, and proper names. Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${englishIntro?.content ? ' and an "intro" field containing the translated introductory paragraph' : ''}. The notes and intro fields should contain properly formatted HTML with <p> tags for paragraphs.`,
           },
           {
             role: "user",
-            content: JSON.stringify({ pieces: piecesForTranslation }),
+            content: JSON.stringify(sourceData),
           },
         ],
         response_format: { type: "json_object" },
@@ -279,6 +303,7 @@ export async function registerRoutes(
       const translated = JSON.parse(translatedText);
 
       res.json({
+        intro: translated.intro || undefined,
         pieces: translated.pieces || piecesForTranslation,
       });
     } catch (err: any) {

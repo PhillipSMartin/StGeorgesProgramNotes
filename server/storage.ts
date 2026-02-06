@@ -1,6 +1,7 @@
 import { db } from "./db";
 import {
   program_content,
+  program_intro,
   program_pieces,
   content_versions,
   tracking_events,
@@ -8,6 +9,8 @@ import {
   supported_languages,
   type ProgramContent,
   type InsertProgramContent,
+  type ProgramIntro,
+  type InsertProgramIntro,
   type ProgramPiece,
   type InsertProgramPiece,
   type ContentVersion,
@@ -31,6 +34,12 @@ export interface IStorage {
   deleteProgramContent(id: number): Promise<boolean>;
   publishContent(language: string): Promise<void>;
   unpublishContent(language: string): Promise<void>;
+
+  // Program intro
+  getIntro(language: string): Promise<ProgramIntro | undefined>;
+  saveIntro(language: string, content: string): Promise<ProgramIntro>;
+  publishIntro(language: string): Promise<void>;
+  unpublishIntro(language: string): Promise<void>;
 
   // Program pieces (multi-piece)
   getPiecesForLanguage(language: string): Promise<ProgramPiece[]>;
@@ -132,6 +141,46 @@ export class DatabaseStorage implements IStorage {
       .update(program_content)
       .set({ published: false, updatedAt: new Date() })
       .where(eq(program_content.language, language));
+  }
+
+  // Program intro
+  async getIntro(language: string): Promise<ProgramIntro | undefined> {
+    const [intro] = await db
+      .select()
+      .from(program_intro)
+      .where(eq(program_intro.language, language));
+    return intro;
+  }
+
+  async saveIntro(language: string, content: string): Promise<ProgramIntro> {
+    const existing = await this.getIntro(language);
+    if (existing) {
+      const [updated] = await db
+        .update(program_intro)
+        .set({ content, published: false, updatedAt: new Date() })
+        .where(eq(program_intro.language, language))
+        .returning();
+      return updated;
+    }
+    const [created] = await db
+      .insert(program_intro)
+      .values({ language, content, published: false })
+      .returning();
+    return created;
+  }
+
+  async publishIntro(language: string): Promise<void> {
+    await db
+      .update(program_intro)
+      .set({ published: true, updatedAt: new Date() })
+      .where(eq(program_intro.language, language));
+  }
+
+  async unpublishIntro(language: string): Promise<void> {
+    await db
+      .update(program_intro)
+      .set({ published: false, updatedAt: new Date() })
+      .where(eq(program_intro.language, language));
   }
 
   // Program pieces (multi-piece support)

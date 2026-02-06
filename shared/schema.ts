@@ -44,6 +44,19 @@ export const insertProgramContentSchema = createInsertSchema(program_content).om
 export type ProgramContent = typeof program_content.$inferSelect;
 export type InsertProgramContent = z.infer<typeof insertProgramContentSchema>;
 
+// === PROGRAM INTRO (thematic intro paragraph before pieces) ===
+export const program_intro = pgTable("program_intro", {
+  id: serial("id").primaryKey(),
+  language: text("language").notNull().unique(),
+  content: text("content").notNull().default(""),
+  published: boolean("published").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertProgramIntroSchema = createInsertSchema(program_intro).omit({ id: true, updatedAt: true });
+export type ProgramIntro = typeof program_intro.$inferSelect;
+export type InsertProgramIntro = z.infer<typeof insertProgramIntroSchema>;
+
 // === PROGRAM PIECES (multi-piece support) ===
 export const program_pieces = pgTable("program_pieces", {
   id: serial("id").primaryKey(),

@@ -101,6 +101,20 @@ export function useUpdateLanguage() {
   });
 }
 
+export function useReorderLanguages() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderedIds: number[]) => {
+      const res = await apiRequest("POST", api.languages.reorder.path, { orderedIds });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.languages.adminList.path] });
+      queryClient.invalidateQueries({ queryKey: [api.languages.list.path] });
+    },
+  });
+}
+
 export function useAdminIntro(language: string) {
   return useQuery<ProgramIntro | null>({
     queryKey: [api.intro.get.path, language],

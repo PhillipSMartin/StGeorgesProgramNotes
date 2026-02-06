@@ -74,6 +74,17 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    reorder: {
+      method: 'POST' as const,
+      path: '/api/admin/languages/reorder',
+      input: z.object({
+        orderedIds: z.array(z.number()),
+      }),
+      responses: {
+        200: z.object({ message: z.string() }),
+        401: errorSchemas.unauthorized,
+      },
+    },
   },
   intro: {
     get: {

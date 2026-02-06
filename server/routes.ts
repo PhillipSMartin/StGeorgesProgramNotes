@@ -173,6 +173,15 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === Admin: Reorder languages ===
+  app.post(api.languages.reorder.path, requireAdmin, async (req, res) => {
+    const { orderedIds } = api.languages.reorder.input.parse(req.body);
+    for (let i = 0; i < orderedIds.length; i++) {
+      await storage.updateSupportedLanguage(orderedIds[i], { order: i + 1 });
+    }
+    res.json({ message: "Languages reordered" });
+  });
+
   // === Admin: Pieces Management ===
   app.get(api.adminPieces.list.path, requireAdmin, async (req, res) => {
     const language = req.query.language as string;

@@ -8,6 +8,7 @@ import {
   useCreateLanguage,
   useDeleteLanguage,
   useUpdateLanguage,
+  useReorderLanguages,
 } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,8 @@ import {
   ToggleLeft,
   ToggleRight,
   ChevronLeft,
+  ChevronUp,
+  ChevronDown,
   FileEdit,
 } from "lucide-react";
 import {
@@ -142,6 +145,7 @@ export default function AdminDashboard() {
   const createLangMutation = useCreateLanguage();
   const deleteLangMutation = useDeleteLanguage();
   const updateLangMutation = useUpdateLanguage();
+  const reorderMutation = useReorderLanguages();
   const { toast } = useToast();
 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -254,6 +258,19 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleMoveLanguage = async (index: number, direction: "up" | "down") => {
+    if (!languages) return;
+    const newList = [...languages];
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= newList.length) return;
+    [newList[index], newList[swapIndex]] = [newList[swapIndex], newList[index]];
+    try {
+      await reorderMutation.mutateAsync(newList.map(l => l.id));
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleDeleteLanguage = async (id: number, label: string) => {
     if (!confirm(`Are you sure you want to delete "${label}"?`)) return;
     try {
@@ -312,13 +329,35 @@ export default function AdminDashboard() {
               </div>
             ) : languages && languages.length > 0 ? (
               <div className="space-y-2">
-                {languages.map((lang) => (
+                {languages.map((lang, index) => (
                   <div
                     key={lang.id}
                     className="flex items-center justify-between gap-4 p-3 rounded-md border border-border"
                     data-testid={`row-language-${lang.id}`}
                   >
                     <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex flex-col gap-0.5 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          disabled={index === 0 || reorderMutation.isPending}
+                          onClick={() => handleMoveLanguage(index, "up")}
+                          data-testid={`button-move-up-${lang.id}`}
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          disabled={index === languages.length - 1 || reorderMutation.isPending}
+                          onClick={() => handleMoveLanguage(index, "down")}
+                          data-testid={`button-move-down-${lang.id}`}
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </Button>
+                      </div>
                       <span className="font-mono text-sm text-muted-foreground w-8">{lang.code}</span>
                       <span className="font-medium">{lang.label}</span>
                       <span className="text-muted-foreground">{lang.nativeLabel}</span>

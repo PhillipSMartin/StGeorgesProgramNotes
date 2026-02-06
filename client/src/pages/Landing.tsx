@@ -63,7 +63,7 @@ export default function Landing() {
         transition={{ delay: 1, duration: 1 }}
         className="mt-16 text-center text-xs text-muted-foreground uppercase tracking-widest"
       >
-        © 2024 St. George's Choral Society
+        © 2026 St. George's Choral Society
       </motion.footer>
     </div>
   );

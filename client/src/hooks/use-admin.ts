@@ -163,6 +163,7 @@ export function usePublishPieces() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.adminPieces.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.pieces.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.intro.get.path] });
     },
   });
 }
@@ -177,6 +178,7 @@ export function useUnpublishPieces() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.adminPieces.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.pieces.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.intro.get.path] });
     },
   });
 }

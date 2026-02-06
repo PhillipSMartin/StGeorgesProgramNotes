@@ -11,7 +11,7 @@ export function useProgramIntro(language: string) {
       if (!res.ok) throw new Error("Failed to fetch intro");
       return res.json();
     },
-    staleTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -24,7 +24,7 @@ export function useProgramPieces(language: string) {
       if (!res.ok) throw new Error("Failed to fetch program pieces");
       return res.json();
     },
-    staleTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 5,
   });
 }
 

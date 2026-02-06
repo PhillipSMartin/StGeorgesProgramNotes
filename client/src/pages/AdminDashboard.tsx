@@ -42,6 +42,96 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const LANGUAGE_LOOKUP: Record<string, { code: string; native: string; dir: string }> = {
+  "afrikaans": { code: "af", native: "Afrikaans", dir: "ltr" },
+  "albanian": { code: "sq", native: "Shqip", dir: "ltr" },
+  "amharic": { code: "am", native: "\u12A0\u121B\u122D\u129B", dir: "ltr" },
+  "arabic": { code: "ar", native: "\u0627\u0644\u0639\u0631\u0628\u064A\u0629", dir: "rtl" },
+  "armenian": { code: "hy", native: "\u0540\u0561\u0575\u0565\u0580\u0565\u0576", dir: "ltr" },
+  "azerbaijani": { code: "az", native: "Az\u0259rbaycan", dir: "ltr" },
+  "basque": { code: "eu", native: "Euskara", dir: "ltr" },
+  "belarusian": { code: "be", native: "\u0411\u0435\u043B\u0430\u0440\u0443\u0441\u043A\u0430\u044F", dir: "ltr" },
+  "bengali": { code: "bn", native: "\u09AC\u09BE\u0982\u09B2\u09BE", dir: "ltr" },
+  "bosnian": { code: "bs", native: "Bosanski", dir: "ltr" },
+  "bulgarian": { code: "bg", native: "\u0411\u044A\u043B\u0433\u0430\u0440\u0441\u043A\u0438", dir: "ltr" },
+  "burmese": { code: "my", native: "\u1019\u103C\u1014\u103A\u1019\u102C\u1005\u102C", dir: "ltr" },
+  "catalan": { code: "ca", native: "Catal\u00E0", dir: "ltr" },
+  "chinese": { code: "zh", native: "\u4E2D\u6587", dir: "ltr" },
+  "chinese (simplified)": { code: "zh-CN", native: "\u7B80\u4F53\u4E2D\u6587", dir: "ltr" },
+  "chinese (traditional)": { code: "zh-TW", native: "\u7E41\u9AD4\u4E2D\u6587", dir: "ltr" },
+  "croatian": { code: "hr", native: "Hrvatski", dir: "ltr" },
+  "czech": { code: "cs", native: "\u010Ce\u0161tina", dir: "ltr" },
+  "danish": { code: "da", native: "Dansk", dir: "ltr" },
+  "dutch": { code: "nl", native: "Nederlands", dir: "ltr" },
+  "english": { code: "en", native: "English", dir: "ltr" },
+  "estonian": { code: "et", native: "Eesti", dir: "ltr" },
+  "farsi": { code: "fa", native: "\u0641\u0627\u0631\u0633\u06CC", dir: "rtl" },
+  "filipino": { code: "fil", native: "Filipino", dir: "ltr" },
+  "finnish": { code: "fi", native: "Suomi", dir: "ltr" },
+  "french": { code: "fr", native: "Fran\u00E7ais", dir: "ltr" },
+  "galician": { code: "gl", native: "Galego", dir: "ltr" },
+  "georgian": { code: "ka", native: "\u10E5\u10D0\u10E0\u10D7\u10E3\u10DA\u10D8", dir: "ltr" },
+  "german": { code: "de", native: "Deutsch", dir: "ltr" },
+  "greek": { code: "el", native: "\u0395\u03BB\u03BB\u03B7\u03BD\u03B9\u03BA\u03AC", dir: "ltr" },
+  "gujarati": { code: "gu", native: "\u0A97\u0AC1\u0A9C\u0AB0\u0ABE\u0AA4\u0AC0", dir: "ltr" },
+  "haitian creole": { code: "ht", native: "Krey\u00F2l Ayisyen", dir: "ltr" },
+  "hausa": { code: "ha", native: "Hausa", dir: "ltr" },
+  "hebrew": { code: "he", native: "\u05E2\u05D1\u05E8\u05D9\u05EA", dir: "rtl" },
+  "hindi": { code: "hi", native: "\u0939\u093F\u0928\u094D\u0926\u0940", dir: "ltr" },
+  "hungarian": { code: "hu", native: "Magyar", dir: "ltr" },
+  "icelandic": { code: "is", native: "\u00CDslenska", dir: "ltr" },
+  "igbo": { code: "ig", native: "Igbo", dir: "ltr" },
+  "indonesian": { code: "id", native: "Bahasa Indonesia", dir: "ltr" },
+  "irish": { code: "ga", native: "Gaeilge", dir: "ltr" },
+  "italian": { code: "it", native: "Italiano", dir: "ltr" },
+  "japanese": { code: "ja", native: "\u65E5\u672C\u8A9E", dir: "ltr" },
+  "javanese": { code: "jv", native: "Basa Jawa", dir: "ltr" },
+  "kannada": { code: "kn", native: "\u0C95\u0CA8\u0CCD\u0CA8\u0CA1", dir: "ltr" },
+  "kazakh": { code: "kk", native: "\u049A\u0430\u0437\u0430\u049B", dir: "ltr" },
+  "khmer": { code: "km", native: "\u1797\u17B6\u179F\u17B6\u1781\u17D2\u1798\u17C2\u179A", dir: "ltr" },
+  "korean": { code: "ko", native: "\uD55C\uAD6D\uC5B4", dir: "ltr" },
+  "kurdish": { code: "ku", native: "Kurd\u00EE", dir: "ltr" },
+  "lao": { code: "lo", native: "\u0EA5\u0EB2\u0EA7", dir: "ltr" },
+  "latvian": { code: "lv", native: "Latvie\u0161u", dir: "ltr" },
+  "lithuanian": { code: "lt", native: "Lietuvi\u0173", dir: "ltr" },
+  "macedonian": { code: "mk", native: "\u041C\u0430\u043A\u0435\u0434\u043E\u043D\u0441\u043A\u0438", dir: "ltr" },
+  "malay": { code: "ms", native: "Bahasa Melayu", dir: "ltr" },
+  "malayalam": { code: "ml", native: "\u0D2E\u0D32\u0D2F\u0D3E\u0D33\u0D02", dir: "ltr" },
+  "maltese": { code: "mt", native: "Malti", dir: "ltr" },
+  "marathi": { code: "mr", native: "\u092E\u0930\u093E\u0920\u0940", dir: "ltr" },
+  "mongolian": { code: "mn", native: "\u041C\u043E\u043D\u0433\u043E\u043B", dir: "ltr" },
+  "nepali": { code: "ne", native: "\u0928\u0947\u092A\u093E\u0932\u0940", dir: "ltr" },
+  "norwegian": { code: "no", native: "Norsk", dir: "ltr" },
+  "pashto": { code: "ps", native: "\u067E\u069A\u062A\u0648", dir: "rtl" },
+  "persian": { code: "fa", native: "\u0641\u0627\u0631\u0633\u06CC", dir: "rtl" },
+  "polish": { code: "pl", native: "Polski", dir: "ltr" },
+  "portuguese": { code: "pt", native: "Portugu\u00EAs", dir: "ltr" },
+  "punjabi": { code: "pa", native: "\u0A2A\u0A70\u0A1C\u0A3E\u0A2C\u0A40", dir: "ltr" },
+  "romanian": { code: "ro", native: "Rom\u00E2n\u0103", dir: "ltr" },
+  "russian": { code: "ru", native: "\u0420\u0443\u0441\u0441\u043A\u0438\u0439", dir: "ltr" },
+  "serbian": { code: "sr", native: "\u0421\u0440\u043F\u0441\u043A\u0438", dir: "ltr" },
+  "sinhala": { code: "si", native: "\u0DC3\u0DD2\u0D82\u0DC4\u0DBD", dir: "ltr" },
+  "slovak": { code: "sk", native: "Sloven\u010Dina", dir: "ltr" },
+  "slovenian": { code: "sl", native: "Sloven\u0161\u010Dina", dir: "ltr" },
+  "somali": { code: "so", native: "Soomaali", dir: "ltr" },
+  "spanish": { code: "es", native: "Espa\u00F1ol", dir: "ltr" },
+  "swahili": { code: "sw", native: "Kiswahili", dir: "ltr" },
+  "swedish": { code: "sv", native: "Svenska", dir: "ltr" },
+  "tagalog": { code: "tl", native: "Tagalog", dir: "ltr" },
+  "tamil": { code: "ta", native: "\u0BA4\u0BAE\u0BBF\u0BB4\u0BCD", dir: "ltr" },
+  "telugu": { code: "te", native: "\u0C24\u0C46\u0C32\u0C41\u0C17\u0C41", dir: "ltr" },
+  "thai": { code: "th", native: "\u0E44\u0E17\u0E22", dir: "ltr" },
+  "turkish": { code: "tr", native: "T\u00FCrk\u00E7e", dir: "ltr" },
+  "ukrainian": { code: "uk", native: "\u0423\u043A\u0440\u0430\u0457\u043D\u0441\u044C\u043A\u0430", dir: "ltr" },
+  "urdu": { code: "ur", native: "\u0627\u0631\u062F\u0648", dir: "rtl" },
+  "uzbek": { code: "uz", native: "O\u02BBzbek", dir: "ltr" },
+  "vietnamese": { code: "vi", native: "Ti\u1EBFng Vi\u1EC7t", dir: "ltr" },
+  "welsh": { code: "cy", native: "Cymraeg", dir: "ltr" },
+  "yiddish": { code: "yi", native: "\u05D9\u05D9\u05D3\u05D9\u05E9", dir: "rtl" },
+  "yoruba": { code: "yo", native: "Yor\u00F9b\u00E1", dir: "ltr" },
+  "zulu": { code: "zu", native: "IsiZulu", dir: "ltr" },
+};
+
 export default function AdminDashboard() {
   const [_, setLocation] = useLocation();
   const { data: session, isLoading: sessionLoading } = useAdminSession();
@@ -63,6 +153,25 @@ export default function AdminDashboard() {
   const [newLangLabel, setNewLangLabel] = useState("");
   const [newLangNative, setNewLangNative] = useState("");
   const [newLangDir, setNewLangDir] = useState("ltr");
+  const [autoFilled, setAutoFilled] = useState(false);
+
+  const handleLabelChange = (value: string) => {
+    setNewLangLabel(value);
+    const match = LANGUAGE_LOOKUP[value.toLowerCase().trim()];
+    if (match) {
+      setNewLangCode(match.code);
+      setNewLangNative(match.native);
+      setNewLangDir(match.dir);
+      setAutoFilled(true);
+    } else {
+      if (autoFilled) {
+        setNewLangCode("");
+        setNewLangNative("");
+        setNewLangDir("ltr");
+        setAutoFilled(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!sessionLoading && !session?.authenticated) {
@@ -129,6 +238,7 @@ export default function AdminDashboard() {
       setNewLangLabel("");
       setNewLangNative("");
       setNewLangDir("ltr");
+      setAutoFilled(false);
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to add language", variant: "destructive" });
     }
@@ -321,6 +431,21 @@ export default function AdminDashboard() {
           </DialogHeader>
           <form onSubmit={handleAddLanguage} className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="lang-label">English Name</Label>
+              <Input
+                id="lang-label"
+                placeholder="e.g., French, German, Japanese"
+                value={newLangLabel}
+                onChange={(e) => handleLabelChange(e.target.value)}
+                data-testid="input-lang-label"
+              />
+              {autoFilled && (
+                <p className="text-xs text-muted-foreground">
+                  Fields below were auto-filled. You can still edit them if needed.
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="lang-code">Language Code</Label>
               <Input
                 id="lang-code"
@@ -331,20 +456,10 @@ export default function AdminDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lang-label">English Name</Label>
-              <Input
-                id="lang-label"
-                placeholder="e.g., French, German, Japanese"
-                value={newLangLabel}
-                onChange={(e) => setNewLangLabel(e.target.value)}
-                data-testid="input-lang-label"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="lang-native">Native Name</Label>
               <Input
                 id="lang-native"
-                placeholder="e.g., Français, Deutsch, 日本語"
+                placeholder="e.g., Fran\u00e7ais, Deutsch, \u65e5\u672c\u8a9e"
                 value={newLangNative}
                 onChange={(e) => setNewLangNative(e.target.value)}
                 data-testid="input-lang-native"

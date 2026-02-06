@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { useProgramContent } from "@/hooks/use-program";
-import { LANGUAGES } from "@/components/LanguageSelector";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@shared/routes";
+import type { SupportedLanguage } from "@shared/schema";
 import { motion } from "framer-motion";
 import { ChevronLeft, Music, Info, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,8 +11,18 @@ import { cn } from "@/lib/utils";
 export default function ProgramNotes() {
   const [match, params] = useRoute("/program/:lang");
   const langCode = match ? params.lang : "en";
-  const language = LANGUAGES.find(l => l.code === langCode) || LANGUAGES[0];
-  const isRTL = language.dir === "rtl";
+
+  const { data: dbLanguages } = useQuery<SupportedLanguage[]>({
+    queryKey: [api.languages.list.path],
+    queryFn: async () => {
+      const res = await fetch(api.languages.list.path, { credentials: "include" });
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const language = dbLanguages?.find(l => l.code === langCode);
+  const isRTL = language?.dir === "rtl";
 
   const { data: content, isLoading, error } = useProgramContent(langCode);
 
@@ -77,7 +89,7 @@ export default function ProgramNotes() {
           <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
             {isRTL ? <ChevronLeft className="w-5 h-5 rotate-180" /> : <ChevronLeft className="w-5 h-5" />}
             <span className="font-sans text-sm font-medium uppercase tracking-wider">
-              {language.code === 'en' ? 'Back' : language.nativeLabel}
+              {langCode === 'en' ? 'Back' : language?.nativeLabel || 'Back'}
             </span>
           </Link>
           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">

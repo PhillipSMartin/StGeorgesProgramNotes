@@ -32,6 +32,7 @@ Preferred communication style: Simple, everyday language.
 - `/program/:lang` — Program notes in the selected language (supports RTL)
 - `/admin` — Admin login (password-based)
 - `/admin/dashboard` — Admin panel for managing languages and changing password
+- `/admin/content/:lang` — Content editor for managing program notes per language (TipTap rich text editor)
 
 ### Backend Architecture
 - **Framework**: Express.js on Node.js
@@ -52,7 +53,8 @@ Preferred communication style: Simple, everyday language.
   - `users` — User profiles from Replit Auth
   - `admin_credentials` — Single-row table for admin password hash
   - `supported_languages` — Languages available for program notes (code, label, native label, direction, enabled flag, sort order)
-  - `program_content` — Program notes content by section and language
+  - `program_content` — Program notes content by section and language (with published flag and updatedAt)
+  - `content_versions` — Version history for content edits (tracks manual vs AI-generated changes)
   - `tracking_events` — Analytics events (e.g., language selections) with JSONB payload
 - **Migrations**: Use `npm run db:push` (drizzle-kit push) to sync schema to database
 
@@ -91,6 +93,9 @@ Preferred communication style: Simple, everyday language.
 - `wouter` — Client-side routing
 - `lucide-react` — Icon library
 - Full shadcn/ui component library (Radix UI primitives)
+- `@tiptap/react` + `@tiptap/starter-kit` + extensions — Rich text editor for content management
+- `dompurify` — HTML sanitization for rendering user-generated content safely
+- `openai` — AI translation via Replit AI Integrations (no API key required)
 
 ### Replit-Specific Integrations
 - `@replit/vite-plugin-runtime-error-modal` — Runtime error overlay in development

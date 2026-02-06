@@ -27,18 +27,18 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
-  // === Public: Content Routes (serves published content, falls back to all) ===
-  app.get(api.content.list.path, async (req, res) => {
+  // === Public: Pieces Routes (serves published pieces, falls back to all) ===
+  app.get(api.pieces.list.path, async (req, res) => {
     const language = req.query.language as string;
     if (!language) {
       return res.status(400).json({ message: "Language parameter is required" });
     }
-    const published = await storage.getPublishedContent(language);
+    const published = await storage.getPublishedPieces(language);
     if (published.length > 0) {
       return res.json(published);
     }
-    const content = await storage.getProgramContent(language);
-    res.json(content);
+    const all = await storage.getPiecesForLanguage(language);
+    res.json(all);
   });
 
   // === Public: Tracking Routes ===
@@ -163,54 +163,48 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  // === Admin: Content Management ===
-  app.get(api.adminContent.list.path, requireAdmin, async (req, res) => {
+  // === Admin: Pieces Management ===
+  app.get(api.adminPieces.list.path, requireAdmin, async (req, res) => {
     const language = req.query.language as string;
     if (!language) {
       return res.status(400).json({ message: "Language parameter is required" });
     }
-    const content = await storage.getAllContentForLanguage(language);
-    res.json(content);
+    const pieces = await storage.getPiecesForLanguage(language);
+    res.json(pieces);
   });
 
-  app.post(api.adminContent.save.path, requireAdmin, async (req, res) => {
+  app.post(api.adminPieces.save.path, requireAdmin, async (req, res) => {
     try {
-      const input = api.adminContent.save.input.parse(req.body);
-      const savedContent = [];
+      const input = api.adminPieces.save.input.parse(req.body);
+      const savedPieces = [];
 
-      for (const sectionData of input.sections) {
-        const existing = (await storage.getAllContentForLanguage(input.language))
-          .find(c => c.section === sectionData.section);
-
-        if (existing) {
-          const latestVersion = await storage.getLatestVersionNumber(existing.id);
-          await storage.createContentVersion({
-            contentId: existing.id,
-            section: existing.section,
-            language: existing.language,
-            content: existing.content,
-            version: latestVersion + 1,
-            sourceType: "manual",
-          });
-          const updated = await storage.updateProgramContent(existing.id, {
-            content: sectionData.content,
-            order: sectionData.order,
-            published: false,
-          });
-          if (updated) savedContent.push(updated);
-        } else {
-          const created = await storage.createProgramContent({
-            section: sectionData.section,
-            language: input.language,
-            content: sectionData.content,
-            order: sectionData.order ?? 0,
-            published: false,
-          });
-          savedContent.push(created);
+      for (const pieceData of input.pieces) {
+        if (pieceData.id) {
+          const existing = await storage.getPieceById(pieceData.id);
+          if (existing) {
+            const updated = await storage.updatePiece(existing.id, {
+              title: pieceData.title,
+              composer: pieceData.composer,
+              notes: pieceData.notes,
+              pieceOrder: pieceData.pieceOrder,
+              published: false,
+            });
+            if (updated) savedPieces.push(updated);
+            continue;
+          }
         }
+        const created = await storage.createPiece({
+          language: input.language,
+          title: pieceData.title,
+          composer: pieceData.composer,
+          notes: pieceData.notes,
+          pieceOrder: pieceData.pieceOrder,
+          published: false,
+        });
+        savedPieces.push(created);
       }
 
-      res.json({ message: "Content saved", content: savedContent });
+      res.json({ message: "Pieces saved", pieces: savedPieces });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -219,66 +213,63 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.adminContent.publish.path, requireAdmin, async (req, res) => {
+  app.delete("/api/admin/pieces/:id", requireAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid piece ID" });
+    }
+    await storage.deletePiece(id);
+    res.status(204).send();
+  });
+
+  app.post(api.adminPieces.publish.path, requireAdmin, async (req, res) => {
     const { language } = req.body;
     if (!language) {
       return res.status(400).json({ message: "Language is required" });
     }
-    await storage.publishContent(language);
-    res.json({ message: `Content published for ${language}` });
+    await storage.publishPieces(language);
+    res.json({ message: `Pieces published for ${language}` });
   });
 
-  app.post(api.adminContent.unpublish.path, requireAdmin, async (req, res) => {
+  app.post(api.adminPieces.unpublish.path, requireAdmin, async (req, res) => {
     const { language } = req.body;
     if (!language) {
       return res.status(400).json({ message: "Language is required" });
     }
-    await storage.unpublishContent(language);
-    res.json({ message: `Content unpublished for ${language}` });
+    await storage.unpublishPieces(language);
+    res.json({ message: `Pieces unpublished for ${language}` });
   });
 
-  app.get(api.adminContent.versions.path, requireAdmin, async (req, res) => {
-    const language = req.query.language as string;
-    const section = req.query.section as string;
-    if (!language || !section) {
-      return res.status(400).json({ message: "Language and section parameters are required" });
-    }
-    const versions = await storage.getContentVersions(language, section);
-    res.json(versions);
-  });
-
-  app.post(api.adminContent.translate.path, requireAdmin, async (req, res) => {
+  app.post(api.adminPieces.translate.path, requireAdmin, async (req, res) => {
     try {
-      const input = api.adminContent.translate.input.parse(req.body);
+      const input = api.adminPieces.translate.input.parse(req.body);
 
-      const englishContent = await storage.getAllContentForLanguage("en");
-      if (englishContent.length === 0) {
-        return res.status(400).json({ message: "No English content found. Please create English content first." });
+      const englishPieces = await storage.getPiecesForLanguage("en");
+      if (englishPieces.length === 0) {
+        return res.status(400).json({ message: "No English pieces found. Please create English content first." });
       }
-
-      const titleContent = englishContent.find(c => c.section === "title")?.content || "";
-      const composerContent = englishContent.find(c => c.section === "composer")?.content || "";
-      const notesContent = englishContent.filter(c => c.section.startsWith("notes")).map(c => c.content).join("\n\n") || "";
 
       const openai = new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
       });
 
+      const piecesForTranslation = englishPieces.map(p => ({
+        title: p.title,
+        composer: p.composer,
+        notes: p.notes,
+      }));
+
       const response = await openai.chat.completions.create({
         model: "gpt-5-mini",
         messages: [
           {
             role: "system",
-            content: `You are a professional translator specializing in classical music and concert program notes. Translate the following concert program content from English to ${input.targetLanguageLabel}. Maintain the formal, elegant tone appropriate for concert programs. Preserve any musical terms, opus numbers, and proper names. Return your response as a JSON object with three fields: "title", "composer", "notes". The notes field should contain properly formatted HTML with <p> tags for paragraphs.`,
+            content: `You are a professional translator specializing in classical music and concert program notes. Translate the following concert program pieces from English to ${input.targetLanguageLabel}. Maintain the formal, elegant tone appropriate for concert programs. Preserve any musical terms, opus numbers, and proper names. Return your response as a JSON object with a "pieces" array, where each element has "title", "composer", and "notes" fields. The notes fields should contain properly formatted HTML with <p> tags for paragraphs.`,
           },
           {
             role: "user",
-            content: JSON.stringify({
-              title: titleContent,
-              composer: composerContent,
-              notes: notesContent,
-            }),
+            content: JSON.stringify({ pieces: piecesForTranslation }),
           },
         ],
         response_format: { type: "json_object" },
@@ -288,9 +279,7 @@ export async function registerRoutes(
       const translated = JSON.parse(translatedText);
 
       res.json({
-        title: translated.title || titleContent,
-        composer: translated.composer || composerContent,
-        notes: translated.notes || notesContent,
+        pieces: translated.pieces || piecesForTranslation,
       });
     } catch (err: any) {
       console.error("Translation error:", err);
@@ -326,22 +315,21 @@ async function seedDatabase() {
     await storage.createSupportedLanguage({ code: "fa", label: "Farsi", nativeLabel: "فارسی", dir: "rtl", enabled: true, order: 4 });
   }
 
-  // Seed content
-  const enContent = await storage.getProgramContent("en");
-  if (enContent.length === 0) {
-    console.log("Seeding content...");
-    await storage.createProgramContent({ section: "title", language: "en", content: "Winter Concert 2025", order: 1, published: true });
-    await storage.createProgramContent({ section: "composer", language: "en", content: "Ludwig van Beethoven", order: 2, published: true });
-    await storage.createProgramContent({ section: "notes", language: "en", content: "Symphony No. 9 in D minor, Op. 125, is a choral symphony, the final complete symphony by Ludwig van Beethoven, composed between 1822 and 1824.", order: 3, published: true });
-    await storage.createProgramContent({ section: "title", language: "es", content: "Concierto de Invierno 2025", order: 1, published: true });
-    await storage.createProgramContent({ section: "composer", language: "es", content: "Ludwig van Beethoven", order: 2, published: true });
-    await storage.createProgramContent({ section: "notes", language: "es", content: "La Sinfonía n.º 9 en re menor, op. 125, es una sinfonía coral, la última sinfonía completa de Ludwig van Beethoven, compuesta entre 1822 y 1824.", order: 3, published: true });
-    await storage.createProgramContent({ section: "title", language: "zh", content: "2025年冬季音乐会", order: 1, published: true });
-    await storage.createProgramContent({ section: "composer", language: "zh", content: "路德维希·范·贝多芬", order: 2, published: true });
-    await storage.createProgramContent({ section: "notes", language: "zh", content: "D小调第九交响曲，作品125，是路德维希·范·贝多芬的最后一部完整交响曲，创作于1822年至1824年之间。", order: 3, published: true });
-    await storage.createProgramContent({ section: "title", language: "fa", content: "کنسرت زمستانی ۲۰۲۵", order: 1, published: true });
-    await storage.createProgramContent({ section: "composer", language: "fa", content: "لودویگ فان بتهوون", order: 2, published: true });
-    await storage.createProgramContent({ section: "notes", language: "fa", content: "سمفونی شماره ۹ در ر مینور، اپوس ۱۲۵، آخرین سمفونی کامل لودویگ فان بتهوون است که بین سال‌های ۱822 تا ۱824 ساخته شده است.", order: 3, published: true });
+  // Seed pieces
+  const enPieces = await storage.getPiecesForLanguage("en");
+  if (enPieces.length === 0) {
+    console.log("Seeding pieces...");
+    await storage.createPiece({ language: "en", title: "Symphony No. 9 in D minor, Op. 125", composer: "Ludwig van Beethoven", notes: "<p>The Ninth Symphony is Beethoven's final complete symphony, composed between 1822 and 1824. Its final movement features a choral setting of Friedrich Schiller's \"Ode to Joy,\" a landmark in orchestral music.</p>", pieceOrder: 1, published: true });
+    await storage.createPiece({ language: "en", title: "Requiem in D minor, K. 626", composer: "Wolfgang Amadeus Mozart", notes: "<p>Mozart's Requiem, left incomplete at his death in 1791, remains one of the most powerful and moving choral works ever composed. The work was completed by his student Franz Xaver Sussmayr.</p>", pieceOrder: 2, published: true });
+
+    await storage.createPiece({ language: "es", title: "Sinfonía n.º 9 en re menor, Op. 125", composer: "Ludwig van Beethoven", notes: "<p>La Novena Sinfonía es la última sinfonía completa de Beethoven, compuesta entre 1822 y 1824. Su movimiento final presenta una adaptación coral de la \"Oda a la Alegría\" de Friedrich Schiller.</p>", pieceOrder: 1, published: true });
+    await storage.createPiece({ language: "es", title: "Réquiem en re menor, K. 626", composer: "Wolfgang Amadeus Mozart", notes: "<p>El Réquiem de Mozart, dejado incompleto a su muerte en 1791, sigue siendo una de las obras corales más poderosas y conmovedoras jamás compuestas.</p>", pieceOrder: 2, published: true });
+
+    await storage.createPiece({ language: "zh", title: "D小调第九交响曲，作品125", composer: "路德维希·范·贝多芬", notes: "<p>第九交响曲是贝多芬最后一部完整的交响曲，创作于1822年至1824年之间。其最后乐章以席勒的《欢乐颂》为合唱部分，是管弦乐史上的里程碑。</p>", pieceOrder: 1, published: true });
+    await storage.createPiece({ language: "zh", title: "D小调安魂曲，K. 626", composer: "沃尔夫冈·阿马德乌斯·莫扎特", notes: "<p>莫扎特的安魂曲在他1791年去世时未完成，至今仍是有史以来最有力、最感人的合唱作品之一。</p>", pieceOrder: 2, published: true });
+
+    await storage.createPiece({ language: "fa", title: "سمفونی شماره ۹ در ر مینور، اپوس ۱۲۵", composer: "لودویگ فان بتهوون", notes: "<p>سمفونی نهم آخرین سمفونی کامل بتهوون است که بین سال‌های ۱۸۲۲ تا ۱۸۲۴ ساخته شده است. حرکت آخر آن شامل تنظیم کرال «سرود شادی» فریدریش شیلر است.</p>", pieceOrder: 1, published: true });
+    await storage.createPiece({ language: "fa", title: "رکوئیم در ر مینور، K. 626", composer: "ولفگانگ آمادئوس موتسارت", notes: "<p>رکوئیم موتسارت که در زمان مرگش در سال ۱۷۹۱ ناتمام ماند، همچنان یکی از قدرتمندترین و تأثیرگذارترین آثار کرال تاریخ موسیقی است.</p>", pieceOrder: 2, published: true });
   }
 
   console.log("Database ready!");

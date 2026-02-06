@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTrackingEventSchema, insertSupportedLanguageSchema, insertProgramContentSchema, program_content, content_versions, tracking_events, supported_languages } from './schema';
+import { insertTrackingEventSchema, insertSupportedLanguageSchema, program_pieces, tracking_events, supported_languages } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -18,18 +18,6 @@ export const errorSchemas = {
 };
 
 export const api = {
-  content: {
-    list: {
-      method: 'GET' as const,
-      path: '/api/content',
-      input: z.object({
-        language: z.string(),
-      }),
-      responses: {
-        200: z.array(z.custom<typeof program_content.$inferSelect>()),
-      },
-    },
-  },
   tracking: {
     log: {
       method: 'POST' as const,
@@ -87,34 +75,53 @@ export const api = {
       },
     },
   },
-  adminContent: {
+  pieces: {
     list: {
       method: 'GET' as const,
-      path: '/api/admin/content',
+      path: '/api/pieces',
       responses: {
-        200: z.array(z.custom<typeof program_content.$inferSelect>()),
+        200: z.array(z.custom<typeof program_pieces.$inferSelect>()),
+      },
+    },
+  },
+  adminPieces: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/admin/pieces',
+      responses: {
+        200: z.array(z.custom<typeof program_pieces.$inferSelect>()),
         401: errorSchemas.unauthorized,
       },
     },
     save: {
       method: 'POST' as const,
-      path: '/api/admin/content',
+      path: '/api/admin/pieces',
       input: z.object({
         language: z.string(),
-        sections: z.array(z.object({
-          section: z.string(),
-          content: z.string(),
-          order: z.number().optional(),
+        pieces: z.array(z.object({
+          id: z.number().optional(),
+          title: z.string(),
+          composer: z.string(),
+          notes: z.string(),
+          pieceOrder: z.number(),
         })),
       }),
       responses: {
-        200: z.object({ message: z.string(), content: z.array(z.custom<typeof program_content.$inferSelect>()) }),
+        200: z.object({ message: z.string(), pieces: z.array(z.custom<typeof program_pieces.$inferSelect>()) }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    deletePiece: {
+      method: 'DELETE' as const,
+      path: '/api/admin/pieces/:id',
+      responses: {
+        204: z.void(),
         401: errorSchemas.unauthorized,
       },
     },
     publish: {
       method: 'POST' as const,
-      path: '/api/admin/content/publish',
+      path: '/api/admin/pieces/publish',
       input: z.object({
         language: z.string(),
       }),
@@ -125,7 +132,7 @@ export const api = {
     },
     unpublish: {
       method: 'POST' as const,
-      path: '/api/admin/content/unpublish',
+      path: '/api/admin/pieces/unpublish',
       input: z.object({
         language: z.string(),
       }),
@@ -134,26 +141,20 @@ export const api = {
         401: errorSchemas.unauthorized,
       },
     },
-    versions: {
-      method: 'GET' as const,
-      path: '/api/admin/content/versions',
-      responses: {
-        200: z.array(z.custom<typeof content_versions.$inferSelect>()),
-        401: errorSchemas.unauthorized,
-      },
-    },
     translate: {
       method: 'POST' as const,
-      path: '/api/admin/content/translate',
+      path: '/api/admin/pieces/translate',
       input: z.object({
         targetLanguage: z.string(),
         targetLanguageLabel: z.string(),
       }),
       responses: {
         200: z.object({
-          title: z.string(),
-          composer: z.string(),
-          notes: z.string(),
+          pieces: z.array(z.object({
+            title: z.string(),
+            composer: z.string(),
+            notes: z.string(),
+          })),
         }),
         400: errorSchemas.validation,
         401: errorSchemas.unauthorized,
@@ -214,7 +215,6 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
   return url;
 }
 
-export type ProgramContentListResponse = z.infer<typeof api.content.list.responses[200]>;
 export type TrackingLogInput = z.infer<typeof api.tracking.log.input>;
 export type TrackingLogResponse = z.infer<typeof api.tracking.log.responses[201]>;
 export type SupportedLanguageResponse = z.infer<typeof api.languages.list.responses[200]>;

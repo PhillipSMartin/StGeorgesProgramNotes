@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useRoute, Link } from "wouter";
-import { useProgramContent } from "@/hooks/use-program";
+import { useProgramPieces } from "@/hooks/use-program";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import type { SupportedLanguage } from "@shared/schema";
@@ -25,22 +25,13 @@ export default function ProgramNotes() {
   const language = dbLanguages?.find(l => l.code === langCode);
   const isRTL = language?.dir === "rtl";
 
-  const { data: content, isLoading, error } = useProgramContent(langCode);
+  const { data: pieces, isLoading } = useProgramPieces(langCode);
 
-  // Scroll to top on mount
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const displayContent = content || [];
-
-  const getSectionContent = (sectionStart: string) => {
-    return displayContent.filter(item => item.section.startsWith(sectionStart));
-  };
-
-  const titleSection = getSectionContent("title")[0];
-  const composerSection = getSectionContent("composer")[0];
-  const notesSections = displayContent.filter(item => !item.section.startsWith("title") && !item.section.startsWith("composer"));
+  const displayPieces = pieces || [];
 
   return (
     <div className={cn(
@@ -48,7 +39,6 @@ export default function ProgramNotes() {
       isRTL ? "font-sans" : "font-serif"
     )} dir={isRTL ? "rtl" : "ltr"}>
       
-      {/* Header */}
       <header className="fixed top-0 left-0 right-0 bg-[#FAF9F6]/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md z-50 border-b border-border/40 shadow-sm">
         <div className="container max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
@@ -63,7 +53,6 @@ export default function ProgramNotes() {
         </div>
       </header>
 
-      {/* Hero Section */}
       <div className="pt-24 px-6 pb-8 container max-w-3xl mx-auto text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -75,18 +64,17 @@ export default function ProgramNotes() {
           </div>
           
           <h1 className="text-3xl md:text-5xl font-bold mb-4 text-foreground leading-tight">
-            {titleSection?.content || "Program Title"}
+            {langCode === 'en' ? 'Program Notes' : language?.nativeLabel || 'Program Notes'}
           </h1>
           
-          <p className="text-lg md:text-xl text-primary font-medium italic mb-8">
-            {composerSection?.content || "Composer Name"}
+          <p className="text-lg text-muted-foreground">
+            St. George's Choral Society
           </p>
 
-          <div className="h-px w-20 bg-border mx-auto" />
+          <div className="h-px w-20 bg-border mx-auto mt-6" />
         </motion.div>
       </div>
 
-      {/* Content Section */}
       <main className="container max-w-3xl mx-auto px-6">
         {isLoading ? (
           <div className="space-y-6 animate-pulse">
@@ -95,26 +83,48 @@ export default function ProgramNotes() {
             <div className="h-4 bg-muted rounded w-5/6 mx-auto"></div>
             <div className="h-32 bg-muted rounded w-full mt-8"></div>
           </div>
+        ) : displayPieces.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <p>No program notes available for this language yet.</p>
+          </div>
         ) : (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.8 }}
-            className="prose prose-lg dark:prose-invert mx-auto font-sans leading-relaxed text-muted-foreground"
-          >
-            {notesSections.map((item) => (
-              <div
-                key={item.id}
-                className="mb-6"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.content) }}
-                data-testid={`text-notes-${item.section}`}
-              />
+          <div className="space-y-12">
+            {displayPieces.map((piece, index) => (
+              <motion.article
+                key={piece.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + index * 0.15, duration: 0.6 }}
+                data-testid={`piece-${piece.id}`}
+              >
+                {index > 0 && (
+                  <div className="flex items-center justify-center mb-8">
+                    <div className="h-px w-16 bg-border" />
+                    <Music className="w-4 h-4 mx-3 text-muted-foreground/50" />
+                    <div className="h-px w-16 bg-border" />
+                  </div>
+                )}
+
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2" data-testid={`text-piece-title-${piece.id}`}>
+                    {piece.title}
+                  </h2>
+                  <p className="text-lg text-primary font-medium italic" data-testid={`text-piece-composer-${piece.id}`}>
+                    {piece.composer}
+                  </p>
+                </div>
+
+                <div
+                  className="prose prose-lg dark:prose-invert mx-auto font-sans leading-relaxed text-muted-foreground"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(piece.notes) }}
+                  data-testid={`text-piece-notes-${piece.id}`}
+                />
+              </motion.article>
             ))}
-          </motion.div>
+          </div>
         )}
       </main>
 
-      {/* Sticky Bottom Nav for later phases */}
       <div className="fixed bottom-6 left-0 right-0 flex justify-center z-40 pointer-events-none">
         <div className="bg-foreground/90 text-background backdrop-blur-md rounded-full px-6 py-3 shadow-2xl flex items-center gap-6 pointer-events-auto scale-90 md:scale-100">
           <button className="flex flex-col items-center gap-1 text-xs opacity-100">

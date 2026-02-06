@@ -1,12 +1,15 @@
 import { db } from "./db";
 import {
   program_content,
+  program_pieces,
   content_versions,
   tracking_events,
   admin_credentials,
   supported_languages,
   type ProgramContent,
   type InsertProgramContent,
+  type ProgramPiece,
+  type InsertProgramPiece,
   type ContentVersion,
   type InsertContentVersion,
   type InsertTrackingEvent,
@@ -18,7 +21,7 @@ import {
 import { eq, and, asc, desc } from "drizzle-orm";
 
 export interface IStorage {
-  // Program content
+  // Program content (legacy)
   getProgramContent(language: string): Promise<ProgramContent[]>;
   getPublishedContent(language: string): Promise<ProgramContent[]>;
   getAllContentForLanguage(language: string): Promise<ProgramContent[]>;
@@ -28,6 +31,16 @@ export interface IStorage {
   deleteProgramContent(id: number): Promise<boolean>;
   publishContent(language: string): Promise<void>;
   unpublishContent(language: string): Promise<void>;
+
+  // Program pieces (multi-piece)
+  getPiecesForLanguage(language: string): Promise<ProgramPiece[]>;
+  getPublishedPieces(language: string): Promise<ProgramPiece[]>;
+  getPieceById(id: number): Promise<ProgramPiece | undefined>;
+  createPiece(piece: InsertProgramPiece): Promise<ProgramPiece>;
+  updatePiece(id: number, updates: Partial<InsertProgramPiece>): Promise<ProgramPiece | undefined>;
+  deletePiece(id: number): Promise<boolean>;
+  publishPieces(language: string): Promise<void>;
+  unpublishPieces(language: string): Promise<void>;
 
   // Content versions
   createContentVersion(version: InsertContentVersion): Promise<ContentVersion>;
@@ -119,6 +132,70 @@ export class DatabaseStorage implements IStorage {
       .update(program_content)
       .set({ published: false, updatedAt: new Date() })
       .where(eq(program_content.language, language));
+  }
+
+  // Program pieces (multi-piece support)
+  async getPiecesForLanguage(language: string): Promise<ProgramPiece[]> {
+    return await db
+      .select()
+      .from(program_pieces)
+      .where(eq(program_pieces.language, language))
+      .orderBy(asc(program_pieces.pieceOrder));
+  }
+
+  async getPublishedPieces(language: string): Promise<ProgramPiece[]> {
+    return await db
+      .select()
+      .from(program_pieces)
+      .where(and(eq(program_pieces.language, language), eq(program_pieces.published, true)))
+      .orderBy(asc(program_pieces.pieceOrder));
+  }
+
+  async getPieceById(id: number): Promise<ProgramPiece | undefined> {
+    const [piece] = await db
+      .select()
+      .from(program_pieces)
+      .where(eq(program_pieces.id, id));
+    return piece;
+  }
+
+  async createPiece(piece: InsertProgramPiece): Promise<ProgramPiece> {
+    const [newPiece] = await db
+      .insert(program_pieces)
+      .values(piece)
+      .returning();
+    return newPiece;
+  }
+
+  async updatePiece(id: number, updates: Partial<InsertProgramPiece>): Promise<ProgramPiece | undefined> {
+    const [updated] = await db
+      .update(program_pieces)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(program_pieces.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePiece(id: number): Promise<boolean> {
+    const result = await db
+      .delete(program_pieces)
+      .where(eq(program_pieces.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async publishPieces(language: string): Promise<void> {
+    await db
+      .update(program_pieces)
+      .set({ published: true, updatedAt: new Date() })
+      .where(eq(program_pieces.language, language));
+  }
+
+  async unpublishPieces(language: string): Promise<void> {
+    await db
+      .update(program_pieces)
+      .set({ published: false, updatedAt: new Date() })
+      .where(eq(program_pieces.language, language));
   }
 
   async createContentVersion(version: InsertContentVersion): Promise<ContentVersion> {

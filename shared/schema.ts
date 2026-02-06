@@ -29,7 +29,7 @@ export const insertSupportedLanguageSchema = createInsertSchema(supported_langua
 export type SupportedLanguage = typeof supported_languages.$inferSelect;
 export type InsertSupportedLanguage = z.infer<typeof insertSupportedLanguageSchema>;
 
-// === PROGRAM CONTENT (Phase 3) ===
+// === PROGRAM CONTENT (Phase 3 - legacy, kept for migration compatibility) ===
 export const program_content = pgTable("program_content", {
   id: serial("id").primaryKey(),
   section: text("section").notNull(),
@@ -43,6 +43,22 @@ export const program_content = pgTable("program_content", {
 export const insertProgramContentSchema = createInsertSchema(program_content).omit({ id: true, updatedAt: true });
 export type ProgramContent = typeof program_content.$inferSelect;
 export type InsertProgramContent = z.infer<typeof insertProgramContentSchema>;
+
+// === PROGRAM PIECES (multi-piece support) ===
+export const program_pieces = pgTable("program_pieces", {
+  id: serial("id").primaryKey(),
+  language: text("language").notNull(),
+  title: text("title").notNull().default(""),
+  composer: text("composer").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  pieceOrder: integer("piece_order").notNull().default(0),
+  published: boolean("published").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertProgramPieceSchema = createInsertSchema(program_pieces).omit({ id: true, updatedAt: true });
+export type ProgramPiece = typeof program_pieces.$inferSelect;
+export type InsertProgramPiece = z.infer<typeof insertProgramPieceSchema>;
 
 // === CONTENT VERSION HISTORY (Phase 3) ===
 export const content_versions = pgTable("content_versions", {

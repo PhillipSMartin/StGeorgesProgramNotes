@@ -7,12 +7,12 @@ import Underline from "@tiptap/extension-underline";
 import {
   useAdminSession,
   useAdminLanguages,
-  useAdminContent,
-  useSaveContent,
-  usePublishContent,
-  useUnpublishContent,
-  useTranslateContent,
-  useContentVersions,
+  useAdminPieces,
+  useSavePieces,
+  useDeletePiece,
+  usePublishPieces,
+  useUnpublishPieces,
+  useTranslatePieces,
 } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,16 +37,13 @@ import {
   Undo,
   Redo,
   Globe,
-  History,
   Loader2,
+  Plus,
+  Trash2,
+  GripVertical,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +52,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import DOMPurify from "dompurify";
+
+interface PieceFormData {
+  id?: number;
+  title: string;
+  composer: string;
+  notes: string;
+  pieceOrder: number;
+}
 
 function MenuBar({ editor }: { editor: any }) {
   if (!editor) return null;
@@ -158,6 +164,119 @@ function MenuBar({ editor }: { editor: any }) {
   );
 }
 
+function PieceEditor({
+  piece,
+  index,
+  isRTL,
+  totalPieces,
+  onUpdate,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+}: {
+  piece: PieceFormData;
+  index: number;
+  isRTL: boolean;
+  totalPieces: number;
+  onUpdate: (field: keyof PieceFormData, value: string) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDelete: () => void;
+}) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+    ],
+    content: piece.notes,
+    onUpdate: ({ editor: ed }) => {
+      onUpdate("notes", ed.getHTML());
+    },
+  });
+
+  useEffect(() => {
+    if (editor && piece.notes !== editor.getHTML()) {
+      editor.commands.setContent(piece.notes);
+    }
+  }, [piece.notes]);
+
+  return (
+    <Card data-testid={`card-piece-${index}`}>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-lg">Piece {index + 1}</CardTitle>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onMoveUp}
+              disabled={index === 0}
+              data-testid={`button-move-up-${index}`}
+            >
+              <ChevronUp className="w-4 h-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onMoveDown}
+              disabled={index === totalPieces - 1}
+              data-testid={`button-move-down-${index}`}
+            >
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              disabled={totalPieces <= 1}
+              data-testid={`button-delete-piece-${index}`}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <label className="text-sm font-medium text-muted-foreground mb-1 block">Title</label>
+          <Input
+            value={piece.title}
+            onChange={(e) => onUpdate("title", e.target.value)}
+            placeholder="Enter piece title..."
+            dir={isRTL ? "rtl" : "ltr"}
+            data-testid={`input-piece-title-${index}`}
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-muted-foreground mb-1 block">Composer</label>
+          <Input
+            value={piece.composer}
+            onChange={(e) => onUpdate("composer", e.target.value)}
+            placeholder="Enter composer name..."
+            dir={isRTL ? "rtl" : "ltr"}
+            data-testid={`input-piece-composer-${index}`}
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-muted-foreground mb-1 block">Program Notes</label>
+          <div className="border rounded-md overflow-visible" dir={isRTL ? "rtl" : "ltr"}>
+            <MenuBar editor={editor} />
+            <EditorContent
+              editor={editor}
+              className="prose dark:prose-invert max-w-none p-4 min-h-[200px] focus-within:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[180px]"
+              data-testid={`editor-piece-notes-${index}`}
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ContentEditor() {
   const [_, setLocation] = useLocation();
   const [match, params] = useRoute("/admin/content/:lang");
@@ -165,34 +284,24 @@ export default function ContentEditor() {
 
   const { data: session, isLoading: sessionLoading } = useAdminSession();
   const { data: languages } = useAdminLanguages();
-  const { data: contentData, isLoading: contentLoading } = useAdminContent(langCode);
-  const saveContentMutation = useSaveContent();
-  const publishMutation = usePublishContent();
-  const unpublishMutation = useUnpublishContent();
-  const translateMutation = useTranslateContent();
+  const { data: piecesData, isLoading: piecesLoading } = useAdminPieces(langCode);
+  const savePiecesMutation = useSavePieces();
+  const deletePieceMutation = useDeletePiece();
+  const publishMutation = usePublishPieces();
+  const unpublishMutation = useUnpublishPieces();
+  const translateMutation = useTranslatePieces();
   const { toast } = useToast();
 
-  const [title, setTitle] = useState("");
-  const [composer, setComposer] = useState("");
+  const [pieces, setPieces] = useState<PieceFormData[]>([
+    { title: "", composer: "", notes: "", pieceOrder: 1 },
+  ]);
   const [showPreview, setShowPreview] = useState(false);
-  const [showVersions, setShowVersions] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const language = languages?.find(l => l.code === langCode);
   const isRTL = language?.dir === "rtl";
-  const isPublished = contentData?.some(c => c.published) ?? false;
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-    ],
-    content: "",
-    onUpdate: () => {
-      setHasUnsavedChanges(true);
-    },
-  });
+  const isPublished = piecesData?.some(p => p.published) ?? false;
 
   useEffect(() => {
     if (!sessionLoading && !session?.authenticated) {
@@ -201,51 +310,99 @@ export default function ContentEditor() {
   }, [session?.authenticated, sessionLoading, setLocation]);
 
   useEffect(() => {
-    if (contentData && contentData.length > 0) {
-      const titleItem = contentData.find(c => c.section === "title");
-      const composerItem = contentData.find(c => c.section === "composer");
-      const notesItem = contentData.find(c => c.section === "notes");
-
-      setTitle(titleItem?.content || "");
-      setComposer(composerItem?.content || "");
-      if (editor && notesItem) {
-        editor.commands.setContent(notesItem.content);
+    if (piecesData && !initialized) {
+      if (piecesData.length > 0) {
+        setPieces(piecesData.map(p => ({
+          id: p.id,
+          title: p.title,
+          composer: p.composer,
+          notes: p.notes,
+          pieceOrder: p.pieceOrder,
+        })));
+      } else {
+        setPieces([{ title: "", composer: "", notes: "", pieceOrder: 1 }]);
       }
       setHasUnsavedChanges(false);
-    } else if (contentData && contentData.length === 0) {
-      setTitle("");
-      setComposer("");
-      if (editor) {
-        editor.commands.setContent("");
-      }
-      setHasUnsavedChanges(false);
+      setInitialized(true);
     }
-  }, [contentData, editor]);
+  }, [piecesData, initialized]);
+
+  useEffect(() => {
+    setInitialized(false);
+  }, [langCode]);
+
+  const updatePiece = useCallback((index: number, field: keyof PieceFormData, value: string) => {
+    setPieces(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const addPiece = useCallback(() => {
+    setPieces(prev => [
+      ...prev,
+      { title: "", composer: "", notes: "", pieceOrder: prev.length + 1 },
+    ]);
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const removePiece = useCallback(async (index: number) => {
+    const piece = pieces[index];
+    if (piece.id) {
+      try {
+        await deletePieceMutation.mutateAsync(piece.id);
+      } catch (error: any) {
+        toast({ title: "Error", description: "Failed to delete piece", variant: "destructive" });
+        return;
+      }
+    }
+    setPieces(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated.map((p, i) => ({ ...p, pieceOrder: i + 1 }));
+    });
+    setHasUnsavedChanges(true);
+  }, [pieces, deletePieceMutation, toast]);
+
+  const movePiece = useCallback((index: number, direction: "up" | "down") => {
+    setPieces(prev => {
+      const updated = [...prev];
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= updated.length) return prev;
+      [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+      return updated.map((p, i) => ({ ...p, pieceOrder: i + 1 }));
+    });
+    setHasUnsavedChanges(true);
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!langCode) return;
-    const notesContent = editor?.getHTML() || "";
 
     try {
-      await saveContentMutation.mutateAsync({
+      await savePiecesMutation.mutateAsync({
         language: langCode,
-        sections: [
-          { section: "title", content: title, order: 1 },
-          { section: "composer", content: composer, order: 2 },
-          { section: "notes", content: notesContent, order: 3 },
-        ],
+        pieces: pieces.map((p, i) => ({
+          id: p.id,
+          title: p.title,
+          composer: p.composer,
+          notes: p.notes,
+          pieceOrder: i + 1,
+        })),
       });
       setHasUnsavedChanges(false);
-      toast({ title: "Saved", description: "Content saved successfully" });
+      setInitialized(false);
+      toast({ title: "Saved", description: "All pieces saved successfully" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to save", variant: "destructive" });
     }
-  }, [langCode, title, composer, editor, saveContentMutation, toast]);
+  }, [langCode, pieces, savePiecesMutation, toast]);
 
   const handlePublish = async () => {
     if (!langCode) return;
     try {
       await publishMutation.mutateAsync(langCode);
+      setInitialized(false);
       toast({ title: "Published", description: `Content published for ${language?.label || langCode}` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to publish", variant: "destructive" });
@@ -256,6 +413,7 @@ export default function ContentEditor() {
     if (!langCode) return;
     try {
       await unpublishMutation.mutateAsync(langCode);
+      setInitialized(false);
       toast({ title: "Unpublished", description: `Content unpublished for ${language?.label || langCode}` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to unpublish", variant: "destructive" });
@@ -269,13 +427,16 @@ export default function ContentEditor() {
         targetLanguage: langCode,
         targetLanguageLabel: language.label,
       });
-      setTitle(result.title);
-      setComposer(result.composer);
-      if (editor) {
-        editor.commands.setContent(result.notes);
+      if (result.pieces && result.pieces.length > 0) {
+        setPieces(result.pieces.map((p: { title: string; composer: string; notes: string }, i: number) => ({
+          title: p.title,
+          composer: p.composer,
+          notes: p.notes,
+          pieceOrder: i + 1,
+        })));
+        setHasUnsavedChanges(true);
+        toast({ title: "Translation Complete", description: "AI translation loaded. Review and save when ready." });
       }
-      setHasUnsavedChanges(true);
-      toast({ title: "Translation Complete", description: "AI translation loaded. Review and save when ready." });
     } catch (error: any) {
       toast({ title: "Translation Failed", description: error.message || "Failed to translate", variant: "destructive" });
     }
@@ -305,7 +466,7 @@ export default function ContentEditor() {
                 {language?.label || langCode} {language?.nativeLabel ? `(${language.nativeLabel})` : ""}
               </span>
               {isPublished && <Badge variant="default" className="text-xs">Published</Badge>}
-              {!isPublished && contentData && contentData.length > 0 && <Badge variant="secondary" className="text-xs">Draft</Badge>}
+              {!isPublished && piecesData && piecesData.length > 0 && <Badge variant="secondary" className="text-xs">Draft</Badge>}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -323,20 +484,11 @@ export default function ContentEditor() {
             </Button>
             <Button
               size="sm"
-              variant="outline"
-              onClick={() => setShowVersions(true)}
-              data-testid="button-history"
-            >
-              <History className="w-4 h-4 mr-1" />
-              History
-            </Button>
-            <Button
-              size="sm"
               onClick={handleSave}
-              disabled={saveContentMutation.isPending}
+              disabled={savePiecesMutation.isPending}
               data-testid="button-save-content"
             >
-              {saveContentMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+              {savePiecesMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
               Save
             </Button>
             {isPublished ? (
@@ -355,7 +507,7 @@ export default function ContentEditor() {
                 size="sm"
                 variant="default"
                 onClick={handlePublish}
-                disabled={publishMutation.isPending || !contentData || contentData.length === 0}
+                disabled={publishMutation.isPending || !piecesData || piecesData.length === 0}
                 data-testid="button-publish"
               >
                 <Eye className="w-4 h-4 mr-1" />
@@ -367,12 +519,12 @@ export default function ContentEditor() {
       </header>
 
       <main className="container max-w-6xl mx-auto px-4 py-6">
-        {contentLoading ? (
+        {piecesLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="space-y-6">
             {langCode !== "en" && (
               <Card>
                 <CardContent className="py-4">
@@ -382,7 +534,7 @@ export default function ContentEditor() {
                       <div>
                         <p className="text-sm font-medium">AI Translation</p>
                         <p className="text-xs text-muted-foreground">
-                          Translate English content to {language?.label || langCode} using AI
+                          Translate all English pieces to {language?.label || langCode} using AI
                         </p>
                       </div>
                     </div>
@@ -410,51 +562,30 @@ export default function ContentEditor() {
               </Card>
             )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Program Title</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Input
-                  value={title}
-                  onChange={(e) => { setTitle(e.target.value); setHasUnsavedChanges(true); }}
-                  placeholder="Enter program title..."
-                  dir={isRTL ? "rtl" : "ltr"}
-                  data-testid="input-content-title"
-                />
-              </CardContent>
-            </Card>
+            {pieces.map((piece, index) => (
+              <PieceEditor
+                key={piece.id ?? `new-${index}`}
+                piece={piece}
+                index={index}
+                isRTL={isRTL ?? false}
+                totalPieces={pieces.length}
+                onUpdate={(field, value) => updatePiece(index, field, value)}
+                onMoveUp={() => movePiece(index, "up")}
+                onMoveDown={() => movePiece(index, "down")}
+                onDelete={() => removePiece(index)}
+              />
+            ))}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Composer / Performer</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Input
-                  value={composer}
-                  onChange={(e) => { setComposer(e.target.value); setHasUnsavedChanges(true); }}
-                  placeholder="Enter composer or performer name..."
-                  dir={isRTL ? "rtl" : "ltr"}
-                  data-testid="input-content-composer"
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Program Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="border rounded-md overflow-visible" dir={isRTL ? "rtl" : "ltr"}>
-                  <MenuBar editor={editor} />
-                  <EditorContent
-                    editor={editor}
-                    className="prose dark:prose-invert max-w-none p-4 min-h-[300px] focus-within:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[280px]"
-                    data-testid="editor-notes"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                onClick={addPiece}
+                data-testid="button-add-piece"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Another Piece
+              </Button>
+            </div>
           </div>
         )}
       </main>
@@ -466,128 +597,28 @@ export default function ContentEditor() {
             <DialogDescription>How the program notes will appear to the audience</DialogDescription>
           </DialogHeader>
           <div
-            className={cn("space-y-6 py-4", isRTL && "text-right")}
+            className={cn("space-y-8 py-4", isRTL && "text-right")}
             dir={isRTL ? "rtl" : "ltr"}
           >
-            <div>
-              <h1 className="text-2xl font-bold" data-testid="preview-title">{title || "No title"}</h1>
-            </div>
-            <div>
-              <p className="text-lg text-muted-foreground italic" data-testid="preview-composer">{composer || "No composer"}</p>
-            </div>
-            <Separator />
-            <div
-              className="prose dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: editor?.getHTML() || "<p>No content</p>" }}
-              data-testid="preview-notes"
-            />
+            {pieces.map((piece, index) => (
+              <div key={index} className="space-y-3">
+                {index > 0 && <Separator />}
+                <h2 className="text-xl font-bold" data-testid={`preview-title-${index}`}>
+                  {piece.title || "Untitled Piece"}
+                </h2>
+                <p className="text-base text-muted-foreground italic" data-testid={`preview-composer-${index}`}>
+                  {piece.composer || "Unknown Composer"}
+                </p>
+                <div
+                  className="prose dark:prose-invert max-w-none text-sm"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(piece.notes || "<p>No notes</p>") }}
+                  data-testid={`preview-notes-${index}`}
+                />
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
-
-      <VersionHistoryDialog
-        open={showVersions}
-        onOpenChange={setShowVersions}
-        language={langCode}
-        onRestore={(content, section) => {
-          if (section === "title") setTitle(content);
-          else if (section === "composer") setComposer(content);
-          else if (section === "notes" && editor) editor.commands.setContent(content);
-          setHasUnsavedChanges(true);
-          toast({ title: "Restored", description: `Previous version of ${section} restored. Save to keep changes.` });
-        }}
-      />
     </div>
-  );
-}
-
-function VersionHistoryDialog({
-  open,
-  onOpenChange,
-  language,
-  onRestore,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  language: string;
-  onRestore: (content: string, section: string) => void;
-}) {
-  const [selectedSection, setSelectedSection] = useState("notes");
-  const { data: versions, isLoading } = useContentVersions(
-    open ? language : "",
-    open ? selectedSection : ""
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Version History</DialogTitle>
-          <DialogDescription>View and restore previous versions of your content</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <Select value={selectedSection} onValueChange={setSelectedSection}>
-            <SelectTrigger data-testid="select-version-section">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="title">Title</SelectItem>
-              <SelectItem value="composer">Composer</SelectItem>
-              <SelectItem value="notes">Notes</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : versions && versions.length > 0 ? (
-            <div className="space-y-3">
-              {versions.map((v) => (
-                <Card key={v.id}>
-                  <CardContent className="py-3">
-                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">v{v.version}</Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {v.sourceType === "ai" ? "AI Translation" : "Manual Edit"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {v.createdAt ? new Date(v.createdAt).toLocaleString() : ""}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            onRestore(v.content, selectedSection);
-                            onOpenChange(false);
-                          }}
-                          data-testid={`button-restore-version-${v.id}`}
-                        >
-                          Restore
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="text-sm text-muted-foreground line-clamp-3 bg-muted/50 rounded p-2">
-                      {selectedSection === "notes" ? (
-                        <div dangerouslySetInnerHTML={{ __html: v.content.slice(0, 300) }} />
-                      ) : (
-                        v.content.slice(0, 200)
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-8" data-testid="text-no-versions">
-              No version history yet. Versions are created each time you save.
-            </p>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

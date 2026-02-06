@@ -32,7 +32,7 @@ Preferred communication style: Simple, everyday language.
 - `/program/:lang` — Program notes in the selected language (supports RTL)
 - `/admin` — Admin login (password-based)
 - `/admin/dashboard` — Admin panel for managing languages and changing password
-- `/admin/content/:lang` — Content editor for managing program notes per language (TipTap rich text editor)
+- `/admin/content/:lang` — Content editor for managing multiple pieces per language (TipTap rich text editor, reorder/add/delete pieces)
 
 ### Backend Architecture
 - **Framework**: Express.js on Node.js
@@ -53,7 +53,8 @@ Preferred communication style: Simple, everyday language.
   - `users` — User profiles from Replit Auth
   - `admin_credentials` — Single-row table for admin password hash
   - `supported_languages` — Languages available for program notes (code, label, native label, direction, enabled flag, sort order)
-  - `program_content` — Program notes content by section and language (with published flag and updatedAt)
+  - `program_content` — (Legacy) Program notes content by section and language
+  - `program_pieces` — Program pieces with title, composer, notes per language (supports multiple pieces per concert, with pieceOrder, published flag)
   - `content_versions` — Version history for content edits (tracks manual vs AI-generated changes)
   - `tracking_events` — Analytics events (e.g., language selections) with JSONB payload
 - **Migrations**: Use `npm run db:push` (drizzle-kit push) to sync schema to database

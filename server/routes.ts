@@ -192,6 +192,7 @@ export async function registerRoutes(
       }
 
       const savedPieces = [];
+      const savedIds = new Set<number>();
 
       for (const pieceData of input.pieces) {
         if (pieceData.id) {
@@ -204,7 +205,10 @@ export async function registerRoutes(
               pieceOrder: pieceData.pieceOrder,
               published: false,
             });
-            if (updated) savedPieces.push(updated);
+            if (updated) {
+              savedPieces.push(updated);
+              savedIds.add(updated.id);
+            }
             continue;
           }
         }
@@ -217,6 +221,14 @@ export async function registerRoutes(
           published: false,
         });
         savedPieces.push(created);
+        savedIds.add(created.id);
+      }
+
+      const allPieces = await storage.getPiecesForLanguage(input.language);
+      for (const piece of allPieces) {
+        if (!savedIds.has(piece.id)) {
+          await storage.deletePiece(piece.id);
+        }
       }
 
       res.json({ message: "Content saved", pieces: savedPieces });

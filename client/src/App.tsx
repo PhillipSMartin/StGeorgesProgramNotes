@@ -8,6 +8,7 @@ import Landing from "@/pages/Landing";
 import ProgramNotes from "@/pages/ProgramNotes";
 import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
+import ContentEditor from "@/pages/ContentEditor";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/program/:lang" component={ProgramNotes} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/content/:lang" component={ContentEditor} />
       <Route component={NotFound} />
     </Switch>
   );

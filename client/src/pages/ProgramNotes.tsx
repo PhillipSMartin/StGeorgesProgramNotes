@@ -7,6 +7,7 @@ import type { SupportedLanguage } from "@shared/schema";
 import { motion } from "framer-motion";
 import { ChevronLeft, Music, Info, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import DOMPurify from "dompurify";
 
 export default function ProgramNotes() {
   const [match, params] = useRoute("/program/:lang");
@@ -31,43 +32,7 @@ export default function ProgramNotes() {
     window.scrollTo(0, 0);
   }, []);
 
-  // Dummy content fallback if database is empty (Phase 1 specific)
-  const dummyContent = [
-    {
-      id: 1,
-      section: "title",
-      content: "Requiem in D minor, K. 626",
-    },
-    {
-      id: 2,
-      section: "composer",
-      content: "Wolfgang Amadeus Mozart (1756–1791)",
-    },
-    {
-      id: 3,
-      section: "notes",
-      content: langCode === 'es' 
-        ? "El Réquiem en re menor, K. 626, es una misa de réquiem de Wolfgang Amadeus Mozart (1756–1791). Mozart compuso parte del Réquiem en Viena a finales de 1791, pero quedó inconcluso a su muerte el 5 de diciembre del mismo año."
-        : langCode === 'zh'
-        ? "D小调安魂曲，K. 626，是沃尔夫冈·阿马德乌斯·莫扎特（1756–1791）的一首安魂弥撒曲。莫扎特于1791年底在维也纳创作了这首安魂曲的一部分，但在同年12月5日去世时并未完成。"
-        : langCode === 'fa'
-        ? "رکوئیم در رِ مینور، ک. ۶۲۶، یک مس رکوئیم اثر ولفگانگ آمادئوس موتسارت (۱۷۵۶–۱۷۹۱) است. موتسارت بخشی از رکوئیم را در اواخر سال ۱۷۹۱ در وین ساخت، اما در زمان مرگش در ۵ دسامبر همان سال ناتمام ماند."
-        : "The Requiem in D minor, K. 626, is a requiem mass by Wolfgang Amadeus Mozart (1756–1791). Mozart composed part of the Requiem in Vienna in late 1791, but it was unfinished at his death on 5 December the same year."
-    },
-    {
-      id: 4,
-      section: "notes_2",
-      content: langCode === 'es'
-        ? "Una versión completada por Franz Xaver Süssmayr fue entregada al Conde Franz von Walsegg, quien había encargado la pieza anónimamente para conmemorar el aniversario de la muerte de su esposa."
-        : langCode === 'zh'
-        ? "由弗朗茨·克萨韦尔·苏斯迈尔完成的版本交付给了弗朗茨·冯·瓦尔塞格伯爵，他曾匿名委托创作这首曲子，以纪念他妻子去世一周年。"
-        : langCode === 'fa'
-        ? "نسخه‌ای که توسط فرانتس خاور سوسمایر تکمیل شده بود، به کنت فرانتس فون والسگ تحویل داده شد، که این قطعه را به صورت ناشناس برای گرامیداشت سالگرد درگذشت همسرش سفارش داده بود."
-        : "A completion dated 1792 by Franz Xaver Süssmayr was delivered to Count Franz von Walsegg, who had anonymously commissioned the piece for a requiem mass to commemorate the 14 February anniversary of his wife's death."
-    }
-  ];
-
-  const displayContent = (content && content.length > 0) ? content : dummyContent;
+  const displayContent = content || [];
 
   const getSectionContent = (sectionStart: string) => {
     return displayContent.filter(item => item.section.startsWith(sectionStart));
@@ -138,9 +103,12 @@ export default function ProgramNotes() {
             className="prose prose-lg dark:prose-invert mx-auto font-sans leading-relaxed text-muted-foreground"
           >
             {notesSections.map((item) => (
-              <p key={item.id} className="mb-6 first-letter:text-5xl first-letter:font-serif first-letter:font-bold first-letter:text-foreground first-letter:mr-3 first-letter:float-left">
-                {item.content}
-              </p>
+              <div
+                key={item.id}
+                className="mb-6"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.content) }}
+                data-testid={`text-notes-${item.section}`}
+              />
             ))}
           </motion.div>
         )}

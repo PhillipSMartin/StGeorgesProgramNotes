@@ -24,6 +24,7 @@ import {
   ToggleLeft,
   ToggleRight,
   ChevronLeft,
+  FileEdit,
 } from "lucide-react";
 import {
   Dialog,
@@ -329,6 +330,14 @@ export default function AdminDashboard() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setLocation(`/admin/content/${lang.code}`)}
+                        data-testid={`button-edit-content-${lang.id}`}
+                      >
+                        <FileEdit className="w-4 h-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

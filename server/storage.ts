@@ -1,25 +1,47 @@
 import { db } from "./db";
 import {
   program_content,
+  content_versions,
   tracking_events,
   admin_credentials,
   supported_languages,
   type ProgramContent,
   type InsertProgramContent,
+  type ContentVersion,
+  type InsertContentVersion,
   type InsertTrackingEvent,
   type TrackingEvent,
   type AdminCredentials,
   type SupportedLanguage,
   type InsertSupportedLanguage
 } from "@shared/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 
 export interface IStorage {
+  // Program content
   getProgramContent(language: string): Promise<ProgramContent[]>;
+  getPublishedContent(language: string): Promise<ProgramContent[]>;
+  getAllContentForLanguage(language: string): Promise<ProgramContent[]>;
+  getContentById(id: number): Promise<ProgramContent | undefined>;
   createProgramContent(content: InsertProgramContent): Promise<ProgramContent>;
+  updateProgramContent(id: number, updates: Partial<InsertProgramContent>): Promise<ProgramContent | undefined>;
+  deleteProgramContent(id: number): Promise<boolean>;
+  publishContent(language: string): Promise<void>;
+  unpublishContent(language: string): Promise<void>;
+
+  // Content versions
+  createContentVersion(version: InsertContentVersion): Promise<ContentVersion>;
+  getContentVersions(language: string, section: string): Promise<ContentVersion[]>;
+  getLatestVersionNumber(contentId: number): Promise<number>;
+
+  // Tracking
   logTrackingEvent(event: InsertTrackingEvent): Promise<TrackingEvent>;
+
+  // Admin
   getAdminCredentials(): Promise<AdminCredentials | undefined>;
   setAdminPassword(hash: string): Promise<void>;
+
+  // Languages
   getSupportedLanguages(): Promise<SupportedLanguage[]>;
   getSupportedLanguage(id: number): Promise<SupportedLanguage | undefined>;
   createSupportedLanguage(lang: InsertSupportedLanguage): Promise<SupportedLanguage>;
@@ -36,12 +58,93 @@ export class DatabaseStorage implements IStorage {
       .orderBy(program_content.order);
   }
 
+  async getPublishedContent(language: string): Promise<ProgramContent[]> {
+    return await db
+      .select()
+      .from(program_content)
+      .where(and(eq(program_content.language, language), eq(program_content.published, true)))
+      .orderBy(program_content.order);
+  }
+
+  async getAllContentForLanguage(language: string): Promise<ProgramContent[]> {
+    return await db
+      .select()
+      .from(program_content)
+      .where(eq(program_content.language, language))
+      .orderBy(program_content.order);
+  }
+
+  async getContentById(id: number): Promise<ProgramContent | undefined> {
+    const [item] = await db
+      .select()
+      .from(program_content)
+      .where(eq(program_content.id, id));
+    return item;
+  }
+
   async createProgramContent(content: InsertProgramContent): Promise<ProgramContent> {
     const [newContent] = await db
       .insert(program_content)
       .values(content)
       .returning();
     return newContent;
+  }
+
+  async updateProgramContent(id: number, updates: Partial<InsertProgramContent>): Promise<ProgramContent | undefined> {
+    const [updated] = await db
+      .update(program_content)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(program_content.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteProgramContent(id: number): Promise<boolean> {
+    const result = await db
+      .delete(program_content)
+      .where(eq(program_content.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async publishContent(language: string): Promise<void> {
+    await db
+      .update(program_content)
+      .set({ published: true, updatedAt: new Date() })
+      .where(eq(program_content.language, language));
+  }
+
+  async unpublishContent(language: string): Promise<void> {
+    await db
+      .update(program_content)
+      .set({ published: false, updatedAt: new Date() })
+      .where(eq(program_content.language, language));
+  }
+
+  async createContentVersion(version: InsertContentVersion): Promise<ContentVersion> {
+    const [newVersion] = await db
+      .insert(content_versions)
+      .values(version)
+      .returning();
+    return newVersion;
+  }
+
+  async getContentVersions(language: string, section: string): Promise<ContentVersion[]> {
+    return await db
+      .select()
+      .from(content_versions)
+      .where(and(eq(content_versions.language, language), eq(content_versions.section, section)))
+      .orderBy(desc(content_versions.version));
+  }
+
+  async getLatestVersionNumber(contentId: number): Promise<number> {
+    const versions = await db
+      .select()
+      .from(content_versions)
+      .where(eq(content_versions.contentId, contentId))
+      .orderBy(desc(content_versions.version))
+      .limit(1);
+    return versions.length > 0 ? versions[0].version : 0;
   }
 
   async logTrackingEvent(event: InsertTrackingEvent): Promise<TrackingEvent> {

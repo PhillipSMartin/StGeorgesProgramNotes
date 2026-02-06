@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTrackingEventSchema, insertSupportedLanguageSchema, program_content, tracking_events, supported_languages } from './schema';
+import { insertTrackingEventSchema, insertSupportedLanguageSchema, insertProgramContentSchema, program_content, content_versions, tracking_events, supported_languages } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -84,6 +84,79 @@ export const api = {
         204: z.void(),
         401: errorSchemas.unauthorized,
         404: errorSchemas.notFound,
+      },
+    },
+  },
+  adminContent: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/admin/content',
+      responses: {
+        200: z.array(z.custom<typeof program_content.$inferSelect>()),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    save: {
+      method: 'POST' as const,
+      path: '/api/admin/content',
+      input: z.object({
+        language: z.string(),
+        sections: z.array(z.object({
+          section: z.string(),
+          content: z.string(),
+          order: z.number().optional(),
+        })),
+      }),
+      responses: {
+        200: z.object({ message: z.string(), content: z.array(z.custom<typeof program_content.$inferSelect>()) }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    publish: {
+      method: 'POST' as const,
+      path: '/api/admin/content/publish',
+      input: z.object({
+        language: z.string(),
+      }),
+      responses: {
+        200: z.object({ message: z.string() }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    unpublish: {
+      method: 'POST' as const,
+      path: '/api/admin/content/unpublish',
+      input: z.object({
+        language: z.string(),
+      }),
+      responses: {
+        200: z.object({ message: z.string() }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    versions: {
+      method: 'GET' as const,
+      path: '/api/admin/content/versions',
+      responses: {
+        200: z.array(z.custom<typeof content_versions.$inferSelect>()),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    translate: {
+      method: 'POST' as const,
+      path: '/api/admin/content/translate',
+      input: z.object({
+        targetLanguage: z.string(),
+        targetLanguageLabel: z.string(),
+      }),
+      responses: {
+        200: z.object({
+          title: z.string(),
+          composer: z.string(),
+          notes: z.string(),
+        }),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
       },
     },
   },

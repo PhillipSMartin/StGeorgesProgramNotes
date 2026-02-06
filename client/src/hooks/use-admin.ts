@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { api, type AdminLoginInput, type AdminChangePasswordInput } from "@shared/routes";
-import type { SupportedLanguage, InsertSupportedLanguage } from "@shared/schema";
+import type { SupportedLanguage, InsertSupportedLanguage, ProgramContent, ContentVersion } from "@shared/schema";
 
 export function useAdminSession() {
   return useQuery<{ authenticated: boolean }>({
@@ -97,6 +97,81 @@ export function useUpdateLanguage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.languages.adminList.path] });
       queryClient.invalidateQueries({ queryKey: [api.languages.list.path] });
+    },
+  });
+}
+
+export function useAdminContent(language: string) {
+  return useQuery<ProgramContent[]>({
+    queryKey: [api.adminContent.list.path, language],
+    queryFn: async () => {
+      const res = await fetch(`${api.adminContent.list.path}?language=${encodeURIComponent(language)}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch content");
+      return res.json();
+    },
+    enabled: !!language,
+  });
+}
+
+export function useSaveContent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { language: string; sections: { section: string; content: string; order?: number }[] }) => {
+      const res = await apiRequest("POST", api.adminContent.save.path, data);
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.adminContent.list.path, variables.language] });
+      queryClient.invalidateQueries({ queryKey: [api.content.list.path, variables.language] });
+    },
+  });
+}
+
+export function usePublishContent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (language: string) => {
+      const res = await apiRequest("POST", api.adminContent.publish.path, { language });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.adminContent.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.content.list.path] });
+    },
+  });
+}
+
+export function useUnpublishContent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (language: string) => {
+      const res = await apiRequest("POST", api.adminContent.unpublish.path, { language });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.adminContent.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.content.list.path] });
+    },
+  });
+}
+
+export function useContentVersions(language: string, section: string) {
+  return useQuery<ContentVersion[]>({
+    queryKey: [api.adminContent.versions.path, language, section],
+    queryFn: async () => {
+      const res = await fetch(`${api.adminContent.versions.path}?language=${encodeURIComponent(language)}&section=${encodeURIComponent(section)}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch versions");
+      return res.json();
+    },
+    enabled: !!language && !!section,
+  });
+}
+
+export function useTranslateContent() {
+  return useMutation({
+    mutationFn: async (data: { targetLanguage: string; targetLanguageLabel: string }) => {
+      const res = await apiRequest("POST", api.adminContent.translate.path, data);
+      return res.json() as Promise<{ title: string; composer: string; notes: string }>;
     },
   });
 }

@@ -197,6 +197,54 @@ export function useUnpublishPieces() {
   });
 }
 
+export function useCurrentAnalytics() {
+  return useQuery<{ stats: { language: string; label: string; count: number; percentage: number }[]; dateRange: { start: string; end: string }; totalCount: number }>({
+    queryKey: [api.analytics.current.path],
+    queryFn: async () => {
+      const res = await fetch(api.analytics.current.path, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch analytics");
+      return res.json();
+    },
+  });
+}
+
+export function useAnalyticsArchives() {
+  return useQuery<{ id: number; periodStart: string; periodEnd: string; totalCount: number; createdAt: string | null }[]>({
+    queryKey: [api.analytics.archives.path],
+    queryFn: async () => {
+      const res = await fetch(api.analytics.archives.path, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch archives");
+      return res.json();
+    },
+  });
+}
+
+export function useArchivedAnalytics(id: number | null) {
+  return useQuery<{ stats: { language: string; label: string; count: number; percentage: number }[]; dateRange: { start: string; end: string }; totalCount: number }>({
+    queryKey: [api.analytics.archives.path, id],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/analytics/archives/${id}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch archive");
+      return res.json();
+    },
+    enabled: id !== null,
+  });
+}
+
+export function useClearAnalytics() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", api.analytics.clear.path);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.analytics.current.path] });
+      queryClient.invalidateQueries({ queryKey: [api.analytics.archives.path] });
+    },
+  });
+}
+
 export function useTranslatePieces() {
   return useMutation({
     mutationFn: async (data: { targetLanguage: string; targetLanguageLabel: string }) => {

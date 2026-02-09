@@ -182,6 +182,37 @@ export async function registerRoutes(
     res.json({ message: "Languages reordered" });
   });
 
+  // === Admin: Analytics ===
+  app.get(api.analytics.current.path, requireAdmin, async (req, res) => {
+    const analytics = await storage.getCurrentAnalytics();
+    res.json(analytics);
+  });
+
+  app.post(api.analytics.clear.path, requireAdmin, async (req, res) => {
+    await storage.clearAndArchiveAnalytics();
+    res.json({ message: "Statistics archived and cleared" });
+  });
+
+  app.get(api.analytics.archives.path, requireAdmin, async (req, res) => {
+    const archives = await storage.listArchivedAnalytics();
+    res.json(archives.map(a => ({
+      id: a.id,
+      periodStart: a.periodStart.toISOString(),
+      periodEnd: a.periodEnd.toISOString(),
+      totalCount: a.totalCount,
+      createdAt: a.createdAt?.toISOString() || null,
+    })));
+  });
+
+  app.get("/api/admin/analytics/archives/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const archived = await storage.getArchivedAnalytics(id);
+    if (!archived) {
+      return res.status(404).json({ message: "Archive not found" });
+    }
+    res.json(archived.snapshot);
+  });
+
   // === Admin: Pieces Management ===
   app.get(api.adminPieces.list.path, requireAdmin, async (req, res) => {
     const language = req.query.language as string;

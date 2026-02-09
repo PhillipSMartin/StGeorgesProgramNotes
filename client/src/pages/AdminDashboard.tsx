@@ -28,6 +28,7 @@ import {
   ChevronUp,
   ChevronDown,
   FileEdit,
+  BarChart3,
 } from "lucide-react";
 import {
   Dialog,
@@ -401,6 +402,22 @@ export default function AdminDashboard() {
               <p className="text-muted-foreground text-center py-6">No languages configured</p>
             )}
           </CardContent>
+        </Card>
+
+        {/* Analytics Section */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Analytics & Reporting
+              </CardTitle>
+              <CardDescription>View language usage statistics and generate reports</CardDescription>
+            </div>
+            <Button size="sm" onClick={() => setLocation("/admin/analytics")} data-testid="button-view-analytics">
+              View Analytics
+            </Button>
+          </CardHeader>
         </Card>
 
         {/* Security Section */}

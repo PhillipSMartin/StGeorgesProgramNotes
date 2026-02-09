@@ -183,6 +183,65 @@ export const api = {
       },
     },
   },
+  analytics: {
+    current: {
+      method: 'GET' as const,
+      path: '/api/admin/analytics/current',
+      responses: {
+        200: z.object({
+          stats: z.array(z.object({
+            language: z.string(),
+            label: z.string(),
+            count: z.number(),
+            percentage: z.number(),
+          })),
+          dateRange: z.object({ start: z.string(), end: z.string() }),
+          totalCount: z.number(),
+        }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    clear: {
+      method: 'POST' as const,
+      path: '/api/admin/analytics/clear',
+      responses: {
+        200: z.object({ message: z.string() }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    archives: {
+      method: 'GET' as const,
+      path: '/api/admin/analytics/archives',
+      responses: {
+        200: z.array(z.object({
+          id: z.number(),
+          periodStart: z.string(),
+          periodEnd: z.string(),
+          totalCount: z.number(),
+          createdAt: z.string().nullable(),
+        })),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    archive: {
+      method: 'GET' as const,
+      path: '/api/admin/analytics/archives/:id',
+      responses: {
+        200: z.object({
+          stats: z.array(z.object({
+            language: z.string(),
+            label: z.string(),
+            count: z.number(),
+            percentage: z.number(),
+          })),
+          dateRange: z.object({ start: z.string(), end: z.string() }),
+          totalCount: z.number(),
+        }),
+        401: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      },
+    },
+  },
   admin: {
     login: {
       method: 'POST' as const,

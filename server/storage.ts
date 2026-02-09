@@ -7,6 +7,7 @@ import {
   tracking_events,
   admin_credentials,
   supported_languages,
+  archived_statistics,
   type ProgramContent,
   type InsertProgramContent,
   type ProgramIntro,
@@ -19,9 +20,12 @@ import {
   type TrackingEvent,
   type AdminCredentials,
   type SupportedLanguage,
-  type InsertSupportedLanguage
+  type InsertSupportedLanguage,
+  type ArchivedStatistic,
+  type AnalyticsSnapshot,
+  type LanguageStat
 } from "@shared/schema";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, sql, min, max, count } from "drizzle-orm";
 
 export interface IStorage {
   // Program content (legacy)
@@ -69,6 +73,12 @@ export interface IStorage {
   createSupportedLanguage(lang: InsertSupportedLanguage): Promise<SupportedLanguage>;
   updateSupportedLanguage(id: number, updates: Partial<InsertSupportedLanguage>): Promise<SupportedLanguage | undefined>;
   deleteSupportedLanguage(id: number): Promise<boolean>;
+
+  // Analytics
+  getCurrentAnalytics(): Promise<AnalyticsSnapshot>;
+  clearAndArchiveAnalytics(): Promise<ArchivedStatistic>;
+  listArchivedAnalytics(): Promise<ArchivedStatistic[]>;
+  getArchivedAnalytics(id: number): Promise<ArchivedStatistic | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -336,6 +346,82 @@ export class DatabaseStorage implements IStorage {
       .where(eq(supported_languages.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async getCurrentAnalytics(): Promise<AnalyticsSnapshot> {
+    const langEvents = await db
+      .select({
+        language: sql<string>`payload->>'language'`,
+        count: count(),
+      })
+      .from(tracking_events)
+      .where(eq(tracking_events.eventType, "language_selected"))
+      .groupBy(sql`payload->>'language'`);
+
+    const dateRange = await db
+      .select({
+        minDate: min(tracking_events.createdAt),
+        maxDate: max(tracking_events.createdAt),
+      })
+      .from(tracking_events)
+      .where(eq(tracking_events.eventType, "language_selected"));
+
+    const totalCount = langEvents.reduce((sum, e) => sum + Number(e.count), 0);
+    const languages = await this.getSupportedLanguages();
+    const langMap = new Map(languages.map(l => [l.code, l.label]));
+
+    const stats: LanguageStat[] = langEvents
+      .map(e => ({
+        language: e.language,
+        label: langMap.get(e.language) || e.language,
+        count: Number(e.count),
+        percentage: totalCount > 0 ? Math.round((Number(e.count) / totalCount) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      stats,
+      dateRange: {
+        start: dateRange[0]?.minDate?.toISOString() || new Date().toISOString(),
+        end: dateRange[0]?.maxDate?.toISOString() || new Date().toISOString(),
+      },
+      totalCount,
+    };
+  }
+
+  async clearAndArchiveAnalytics(): Promise<ArchivedStatistic> {
+    const snapshot = await this.getCurrentAnalytics();
+
+    const [archived] = await db
+      .insert(archived_statistics)
+      .values({
+        periodStart: new Date(snapshot.dateRange.start),
+        periodEnd: new Date(snapshot.dateRange.end),
+        snapshot: snapshot as any,
+        totalCount: snapshot.totalCount,
+      })
+      .returning();
+
+    await db
+      .delete(tracking_events)
+      .where(eq(tracking_events.eventType, "language_selected"));
+
+    return archived;
+  }
+
+  async listArchivedAnalytics(): Promise<ArchivedStatistic[]> {
+    return await db
+      .select()
+      .from(archived_statistics)
+      .orderBy(desc(archived_statistics.createdAt));
+  }
+
+  async getArchivedAnalytics(id: number): Promise<ArchivedStatistic | undefined> {
+    const [archived] = await db
+      .select()
+      .from(archived_statistics)
+      .where(eq(archived_statistics.id, id));
+    return archived;
   }
 }
 

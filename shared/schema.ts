@@ -100,3 +100,28 @@ export const tracking_events = pgTable("tracking_events", {
 export const insertTrackingEventSchema = createInsertSchema(tracking_events).omit({ id: true, createdAt: true });
 export type TrackingEvent = typeof tracking_events.$inferSelect;
 export type InsertTrackingEvent = z.infer<typeof insertTrackingEventSchema>;
+
+// === ARCHIVED STATISTICS (Phase 4) ===
+export const archived_statistics = pgTable("archived_statistics", {
+  id: serial("id").primaryKey(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  snapshot: jsonb("snapshot").notNull(),
+  totalCount: integer("total_count").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type ArchivedStatistic = typeof archived_statistics.$inferSelect;
+
+export type LanguageStat = {
+  language: string;
+  label: string;
+  count: number;
+  percentage: number;
+};
+
+export type AnalyticsSnapshot = {
+  stats: LanguageStat[];
+  dateRange: { start: string; end: string };
+  totalCount: number;
+};

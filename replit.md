@@ -33,6 +33,7 @@ Preferred communication style: Simple, everyday language.
 - `/admin` — Admin login (password-based)
 - `/admin/dashboard` — Admin panel for managing languages and changing password
 - `/admin/content/:lang` — Content editor for managing multiple pieces per language (TipTap rich text editor, reorder/add/delete pieces)
+- `/admin/analytics` — Analytics dashboard with charts, tables, archive toggle, and PDF export for language usage statistics
 
 ### Backend Architecture
 - **Framework**: Express.js on Node.js
@@ -58,6 +59,7 @@ Preferred communication style: Simple, everyday language.
   - `program_pieces` — Program pieces with title, composer, notes per language (supports multiple pieces per concert, with pieceOrder, published flag)
   - `content_versions` — Version history for content edits (tracks manual vs AI-generated changes)
   - `tracking_events` — Analytics events (e.g., language selections) with JSONB payload
+  - `archived_statistics` — Archived analytics snapshots (periodStart, periodEnd, snapshot JSONB, totalCount)
 - **Migrations**: Use `npm run db:push` (drizzle-kit push) to sync schema to database
 
 ### Storage Layer

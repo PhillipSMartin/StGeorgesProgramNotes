@@ -162,6 +162,25 @@ export const api = {
         401: errorSchemas.unauthorized,
       },
     },
+    translateAll: {
+      method: 'POST' as const,
+      path: '/api/admin/pieces/translate-all',
+      input: z.object({
+        provider: z.enum(["openai", "google"]).default("openai"),
+      }),
+      responses: {
+        200: z.object({
+          results: z.array(z.object({
+            language: z.string(),
+            label: z.string(),
+            status: z.enum(["success", "error"]),
+            message: z.string().optional(),
+          })),
+        }),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+      },
+    },
     translate: {
       method: 'POST' as const,
       path: '/api/admin/pieces/translate',

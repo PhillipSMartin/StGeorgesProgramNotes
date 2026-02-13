@@ -9,6 +9,7 @@ import {
   useDeleteLanguage,
   useUpdateLanguage,
   useReorderLanguages,
+  useTranslateAllPieces,
 } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,8 @@ import {
   ChevronDown,
   FileEdit,
   BarChart3,
+  Loader2,
+  Globe,
 } from "lucide-react";
 import {
   Dialog,
@@ -147,10 +150,12 @@ export default function AdminDashboard() {
   const deleteLangMutation = useDeleteLanguage();
   const updateLangMutation = useUpdateLanguage();
   const reorderMutation = useReorderLanguages();
+  const translateAllMutation = useTranslateAllPieces();
   const { toast } = useToast();
 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showAddLangDialog, setShowAddLangDialog] = useState(false);
+  const [translateAllProvider, setTranslateAllProvider] = useState<"openai" | "google">("openai");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -282,6 +287,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleTranslateAll = async () => {
+    const nonEnglishEnabled = languages?.filter(l => l.code !== "en" && l.enabled) || [];
+    if (nonEnglishEnabled.length === 0) {
+      toast({ title: "No Languages", description: "No enabled non-English languages to translate.", variant: "destructive" });
+      return;
+    }
+    if (!confirm(`This will translate, save, and publish content for ${nonEnglishEnabled.length} language(s) using ${translateAllProvider === "openai" ? "OpenAI" : "Google Translate"}. Continue?`)) return;
+    try {
+      const result = await translateAllMutation.mutateAsync({ provider: translateAllProvider });
+      const successCount = result.results.filter(r => r.status === "success").length;
+      const errorCount = result.results.filter(r => r.status === "error").length;
+      if (errorCount === 0) {
+        toast({ title: "All Translations Complete", description: `Successfully translated, saved, and published ${successCount} language(s).` });
+      } else {
+        const failedLangs = result.results.filter(r => r.status === "error").map(r => r.label).join(", ");
+        toast({ title: "Translations Partially Complete", description: `${successCount} succeeded, ${errorCount} failed (${failedLangs}).`, variant: "destructive" });
+      }
+    } catch (error: any) {
+      toast({ title: "Translation Failed", description: error.message || "Failed to translate all languages", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -401,6 +428,47 @@ export default function AdminDashboard() {
             ) : (
               <p className="text-muted-foreground text-center py-6">No languages configured</p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Translate All Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5" />
+              Translate All Languages
+            </CardTitle>
+            <CardDescription>Translate, save, and publish English content to all enabled non-English languages in one step</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select value={translateAllProvider} onValueChange={(v) => setTranslateAllProvider(v as "openai" | "google")}>
+                <SelectTrigger className="w-[160px]" data-testid="select-translate-all-provider">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="openai">OpenAI</SelectItem>
+                  <SelectItem value="google">Google Translate</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleTranslateAll}
+                disabled={translateAllMutation.isPending}
+                data-testid="button-translate-all"
+              >
+                {translateAllMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Translating All...
+                  </>
+                ) : (
+                  <>
+                    <Languages className="w-4 h-4 mr-2" />
+                    Translate, Save & Publish All
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

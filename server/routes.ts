@@ -309,6 +309,208 @@ export async function registerRoutes(
     res.json({ message: `Content unpublished for ${language}` });
   });
 
+  async function translateContent(
+    provider: "openai" | "google",
+    targetLanguage: string,
+    targetLanguageLabel: string,
+    englishPieces: { title: string; composer: string; notes: string }[],
+    englishIntro: { content: string } | null | undefined,
+  ): Promise<{ intro?: string; pieces: { title: string; composer: string; notes: string }[] }> {
+    if (provider === "google") {
+      const apiKey = process.env.GOOGLE_CLOUD_TRANSLATION_API_KEY;
+      if (!apiKey) {
+        throw new Error("Google Cloud Translation API key not configured. Please add GOOGLE_CLOUD_TRANSLATION_API_KEY in your secrets.");
+      }
+
+      const textsToTranslate: string[] = [];
+      for (const p of englishPieces) {
+        textsToTranslate.push(p.title);
+        textsToTranslate.push(p.notes);
+      }
+      if (englishIntro?.content) {
+        textsToTranslate.push(englishIntro.content);
+      }
+
+      const googleRes = await fetch(
+        `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            q: textsToTranslate,
+            target: targetLanguage,
+            source: "en",
+            format: "html",
+          }),
+        }
+      );
+
+      if (!googleRes.ok) {
+        const errBody = await googleRes.text();
+        console.error("Google Translate API error:", errBody);
+        throw new Error("Google Translation API error. Check your API key and quota.");
+      }
+
+      const googleData = await googleRes.json();
+      const translations = googleData.data.translations.map((t: any) => t.translatedText);
+
+      let idx = 0;
+      const translatedPieces = englishPieces.map(p => ({
+        title: `${translations[idx++]} (${p.title})`,
+        composer: p.composer,
+        notes: translations[idx++],
+      }));
+
+      let translatedIntro: string | undefined;
+      if (englishIntro?.content) {
+        translatedIntro = translations[idx];
+      }
+
+      return { intro: translatedIntro, pieces: translatedPieces };
+    } else {
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const piecesForTranslation = englishPieces.map(p => ({
+        title: p.title,
+        composer: p.composer,
+        notes: p.notes,
+      }));
+
+      const sourceData: any = { pieces: piecesForTranslation };
+      if (englishIntro?.content) {
+        sourceData.intro = englishIntro.content;
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional translator specializing in classical music and concert program notes. Translate the following concert program content from English to ${targetLanguageLabel}.
+
+Guidelines:
+- Maintain the formal, elegant tone appropriate for concert programs.
+- Translate piece titles into ${targetLanguageLabel}, followed by the original English title in parentheses. For example: "Translated Title (Original English Title)".
+- Keep composer names in their original Latin-script form (do not transliterate).
+- Preserve opus numbers (e.g., Op. 26, K. 626).
+- When a piece title appears within the notes text, use ONLY the translated title without any English parenthetical. The English original should only appear in the "title" field, never repeated inside "notes".
+- The notes and intro fields should contain properly formatted HTML with <p> tags for paragraphs.
+
+Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${englishIntro?.content ? ' and an "intro" field containing the translated introductory paragraph' : ''}.`,
+          },
+          {
+            role: "user",
+            content: JSON.stringify(sourceData),
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const translatedText = response.choices[0]?.message?.content || "{}";
+      const translated = JSON.parse(translatedText);
+
+      return {
+        intro: translated.intro || undefined,
+        pieces: translated.pieces || piecesForTranslation,
+      };
+    }
+  }
+
+  app.post(api.adminPieces.translateAll.path, requireAdmin, async (req, res) => {
+    try {
+      const input = api.adminPieces.translateAll.input.parse(req.body);
+
+      const englishPieces = await storage.getPiecesForLanguage("en");
+      if (englishPieces.length === 0) {
+        return res.status(400).json({ message: "No English pieces found. Please create English content first." });
+      }
+
+      const englishIntro = await storage.getIntro("en");
+      const allLanguages = await storage.getSupportedLanguages();
+      const nonEnglishLangs = allLanguages.filter(l => l.code !== "en" && l.enabled);
+
+      if (nonEnglishLangs.length === 0) {
+        return res.status(400).json({ message: "No enabled non-English languages found." });
+      }
+
+      const piecesForTranslation = englishPieces.map(p => ({
+        title: p.title,
+        composer: p.composer,
+        notes: p.notes,
+      }));
+
+      const results: { language: string; label: string; status: "success" | "error"; message?: string }[] = [];
+
+      for (const lang of nonEnglishLangs) {
+        try {
+          const translated = await translateContent(
+            input.provider,
+            lang.code,
+            lang.label,
+            piecesForTranslation,
+            englishIntro,
+          );
+
+          if (translated.intro) {
+            await storage.saveIntro(lang.code, translated.intro);
+          }
+
+          const existingPieces = await storage.getPiecesForLanguage(lang.code);
+          const savedIds = new Set<number>();
+
+          for (let i = 0; i < translated.pieces.length; i++) {
+            const tp = translated.pieces[i];
+            if (existingPieces[i]) {
+              await storage.updatePiece(existingPieces[i].id, {
+                title: tp.title,
+                composer: tp.composer,
+                notes: tp.notes,
+                pieceOrder: i + 1,
+                published: false,
+              });
+              savedIds.add(existingPieces[i].id);
+            } else {
+              const created = await storage.createPiece({
+                language: lang.code,
+                title: tp.title,
+                composer: tp.composer,
+                notes: tp.notes,
+                pieceOrder: i + 1,
+                published: false,
+              });
+              savedIds.add(created.id);
+            }
+          }
+
+          for (const ep of existingPieces) {
+            if (!savedIds.has(ep.id)) {
+              await storage.deletePiece(ep.id);
+            }
+          }
+
+          await storage.publishPieces(lang.code);
+          await storage.publishIntro(lang.code);
+
+          results.push({ language: lang.code, label: lang.label, status: "success" });
+        } catch (langErr: any) {
+          console.error(`Translation error for ${lang.label}:`, langErr);
+          results.push({ language: lang.code, label: lang.label, status: "error", message: langErr.message || "Translation failed" });
+        }
+      }
+
+      res.json({ results });
+    } catch (err: any) {
+      console.error("Translate all error:", err);
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: err.message || "Translation failed" });
+    }
+  });
+
   app.post(api.adminPieces.translate.path, requireAdmin, async (req, res) => {
     try {
       const input = api.adminPieces.translate.input.parse(req.body);
@@ -326,104 +528,15 @@ export async function registerRoutes(
         notes: p.notes,
       }));
 
-      if (input.provider === "google") {
-        const apiKey = process.env.GOOGLE_CLOUD_TRANSLATION_API_KEY;
-        if (!apiKey) {
-          return res.status(400).json({ message: "Google Cloud Translation API key not configured. Please add GOOGLE_CLOUD_TRANSLATION_API_KEY in your secrets." });
-        }
+      const result = await translateContent(
+        input.provider,
+        input.targetLanguage,
+        input.targetLanguageLabel,
+        piecesForTranslation,
+        englishIntro,
+      );
 
-        const textsToTranslate: string[] = [];
-        for (const p of piecesForTranslation) {
-          textsToTranslate.push(p.title);
-          textsToTranslate.push(p.notes);
-        }
-        if (englishIntro?.content) {
-          textsToTranslate.push(englishIntro.content);
-        }
-
-        const googleRes = await fetch(
-          `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              q: textsToTranslate,
-              target: input.targetLanguage,
-              source: "en",
-              format: "html",
-            }),
-          }
-        );
-
-        if (!googleRes.ok) {
-          const errBody = await googleRes.text();
-          console.error("Google Translate API error:", errBody);
-          return res.status(500).json({ message: "Google Translation API error. Check your API key and quota." });
-        }
-
-        const googleData = await googleRes.json();
-        const translations = googleData.data.translations.map((t: any) => t.translatedText);
-
-        let idx = 0;
-        const translatedPieces = piecesForTranslation.map(p => ({
-          title: `${translations[idx++]} (${p.title})`,
-          composer: p.composer,
-          notes: translations[idx++],
-        }));
-
-        let translatedIntro: string | undefined;
-        if (englishIntro?.content) {
-          translatedIntro = translations[idx];
-        }
-
-        res.json({
-          intro: translatedIntro,
-          pieces: translatedPieces,
-        });
-      } else {
-        const openai = new OpenAI({
-          apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-          baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-        });
-
-        const sourceData: any = { pieces: piecesForTranslation };
-        if (englishIntro?.content) {
-          sourceData.intro = englishIntro.content;
-        }
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-5-mini",
-          messages: [
-            {
-              role: "system",
-              content: `You are a professional translator specializing in classical music and concert program notes. Translate the following concert program content from English to ${input.targetLanguageLabel}.
-
-Guidelines:
-- Maintain the formal, elegant tone appropriate for concert programs.
-- Translate piece titles into ${input.targetLanguageLabel}, followed by the original English title in parentheses. For example: "Translated Title (Original English Title)".
-- Keep composer names in their original Latin-script form (do not transliterate).
-- Preserve opus numbers (e.g., Op. 26, K. 626).
-- When a piece title appears within the notes text, use ONLY the translated title without any English parenthetical. The English original should only appear in the "title" field, never repeated inside "notes".
-- The notes and intro fields should contain properly formatted HTML with <p> tags for paragraphs.
-
-Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${englishIntro?.content ? ' and an "intro" field containing the translated introductory paragraph' : ''}.`,
-            },
-            {
-              role: "user",
-              content: JSON.stringify(sourceData),
-            },
-          ],
-          response_format: { type: "json_object" },
-        });
-
-        const translatedText = response.choices[0]?.message?.content || "{}";
-        const translated = JSON.parse(translatedText);
-
-        res.json({
-          intro: translated.intro || undefined,
-          pieces: translated.pieces || piecesForTranslation,
-        });
-      }
+      res.json(result);
     } catch (err: any) {
       console.error("Translation error:", err);
       if (err instanceof z.ZodError) {

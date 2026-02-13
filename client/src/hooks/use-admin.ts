@@ -255,6 +255,7 @@ export function useTranslatePieces() {
 }
 
 export function useTranslateAllPieces() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: { provider: "openai" | "google" }) => {
       const res = await apiRequest("POST", api.adminPieces.translateAll.path, data);

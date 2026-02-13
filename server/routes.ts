@@ -182,6 +182,34 @@ export async function registerRoutes(
     res.json({ message: "Languages reordered" });
   });
 
+  // === Admin: Print All Notes ===
+  app.get(api.printAll.path, requireAdmin, async (_req, res) => {
+    try {
+      const allLanguages = await storage.getSupportedLanguages();
+      const enabledLangs = allLanguages.filter(l => l.enabled).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+      const results = await Promise.all(enabledLangs.map(async (lang) => {
+        const pieces = await storage.getPiecesForLanguage(lang.code);
+        const intro = await storage.getIntro(lang.code);
+        return {
+          code: lang.code,
+          label: lang.label,
+          nativeLabel: lang.nativeLabel,
+          dir: lang.dir,
+          intro: intro?.content || null,
+          pieces: pieces
+            .sort((a, b) => a.pieceOrder - b.pieceOrder)
+            .map(p => ({ title: p.title, composer: p.composer, notes: p.notes, pieceOrder: p.pieceOrder })),
+        };
+      }));
+
+      res.json({ languages: results });
+    } catch (error: any) {
+      console.error("Print all error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch print data" });
+    }
+  });
+
   // === Admin: Analytics ===
   app.get(api.analytics.current.path, requireAdmin, async (req, res) => {
     const analytics = await storage.getCurrentAnalytics();

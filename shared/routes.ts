@@ -203,6 +203,28 @@ export const api = {
       },
     },
   },
+  printAll: {
+    method: 'GET' as const,
+    path: '/api/admin/print-all',
+    responses: {
+      200: z.object({
+        languages: z.array(z.object({
+          code: z.string(),
+          label: z.string(),
+          nativeLabel: z.string(),
+          dir: z.string(),
+          intro: z.string().nullable(),
+          pieces: z.array(z.object({
+            title: z.string(),
+            composer: z.string(),
+            notes: z.string(),
+            pieceOrder: z.number(),
+          })),
+        })),
+      }),
+      401: errorSchemas.unauthorized,
+    },
+  },
   analytics: {
     current: {
       method: 'GET' as const,

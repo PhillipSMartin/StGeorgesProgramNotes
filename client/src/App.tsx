@@ -10,6 +10,7 @@ import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
 import ContentEditor from "@/pages/ContentEditor";
 import AdminAnalytics from "@/pages/AdminAnalytics";
+import PrintAllNotes from "@/pages/PrintAllNotes";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/admin/content/:lang" component={ContentEditor} />
       <Route path="/admin/analytics" component={AdminAnalytics} />
+      <Route path="/admin/print" component={PrintAllNotes} />
       <Route component={NotFound} />
     </Switch>
   );

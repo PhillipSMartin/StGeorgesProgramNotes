@@ -32,6 +32,7 @@ import {
   BarChart3,
   Loader2,
   Globe,
+  Printer,
 } from "lucide-react";
 import {
   Dialog,
@@ -469,6 +470,27 @@ export default function AdminDashboard() {
                 )}
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Print All Notes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Printer className="w-5 h-5" />
+              Print Program Notes
+            </CardTitle>
+            <CardDescription>Print all program notes with each language on a separate page</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/admin/print")}
+              data-testid="button-print-all-notes"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print All Notes
+            </Button>
           </CardContent>
         </Card>
 

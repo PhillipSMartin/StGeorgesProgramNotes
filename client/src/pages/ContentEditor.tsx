@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
   ChevronLeft,
@@ -353,6 +354,7 @@ export default function ContentEditor() {
   ]);
   const [showPreview, setShowPreview] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [translationProvider, setTranslationProvider] = useState<"openai" | "google">("openai");
   const [initialized, setInitialized] = useState(false);
 
   const language = languages?.find(l => l.code === langCode);
@@ -499,6 +501,7 @@ export default function ContentEditor() {
       const result = await translateMutation.mutateAsync({
         targetLanguage: langCode,
         targetLanguageLabel: language.label,
+        provider: translationProvider,
       });
       if (result.pieces && result.pieces.length > 0) {
         setPieces(result.pieces.map((p: { title: string; composer: string; notes: string }, i: number) => ({
@@ -610,29 +613,40 @@ export default function ContentEditor() {
                       <div>
                         <p className="text-sm font-medium">AI Translation</p>
                         <p className="text-xs text-muted-foreground">
-                          Translate all English pieces to {language?.label || langCode} using AI
+                          Translate all English pieces to {language?.label || langCode}
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleTranslate}
-                      disabled={translateMutation.isPending}
-                      data-testid="button-translate"
-                    >
-                      {translateMutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                          Translating...
-                        </>
-                      ) : (
-                        <>
-                          <Languages className="w-4 h-4 mr-1" />
-                          Translate from English
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Select value={translationProvider} onValueChange={(v) => setTranslationProvider(v as "openai" | "google")} data-testid="select-translation-provider">
+                        <SelectTrigger className="w-[140px] h-8 text-xs" data-testid="select-translation-provider">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="openai">OpenAI</SelectItem>
+                          <SelectItem value="google">Google Translate</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleTranslate}
+                        disabled={translateMutation.isPending}
+                        data-testid="button-translate"
+                      >
+                        {translateMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            Translating...
+                          </>
+                        ) : (
+                          <>
+                            <Languages className="w-4 h-4 mr-1" />
+                            Translate
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

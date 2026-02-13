@@ -320,28 +320,83 @@ export async function registerRoutes(
 
       const englishIntro = await storage.getIntro("en");
 
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
-
       const piecesForTranslation = englishPieces.map(p => ({
         title: p.title,
         composer: p.composer,
         notes: p.notes,
       }));
 
-      const sourceData: any = { pieces: piecesForTranslation };
-      if (englishIntro?.content) {
-        sourceData.intro = englishIntro.content;
-      }
+      if (input.provider === "google") {
+        const apiKey = process.env.GOOGLE_CLOUD_TRANSLATION_API_KEY;
+        if (!apiKey) {
+          return res.status(400).json({ message: "Google Cloud Translation API key not configured. Please add GOOGLE_CLOUD_TRANSLATION_API_KEY in your secrets." });
+        }
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-5-mini",
-        messages: [
+        const textsToTranslate: string[] = [];
+        for (const p of piecesForTranslation) {
+          textsToTranslate.push(p.title);
+          textsToTranslate.push(p.notes);
+        }
+        if (englishIntro?.content) {
+          textsToTranslate.push(englishIntro.content);
+        }
+
+        const googleRes = await fetch(
+          `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
           {
-            role: "system",
-            content: `You are a professional translator specializing in classical music and concert program notes. Translate the following concert program content from English to ${input.targetLanguageLabel}.
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              q: textsToTranslate,
+              target: input.targetLanguage,
+              source: "en",
+              format: "html",
+            }),
+          }
+        );
+
+        if (!googleRes.ok) {
+          const errBody = await googleRes.text();
+          console.error("Google Translate API error:", errBody);
+          return res.status(500).json({ message: "Google Translation API error. Check your API key and quota." });
+        }
+
+        const googleData = await googleRes.json();
+        const translations = googleData.data.translations.map((t: any) => t.translatedText);
+
+        let idx = 0;
+        const translatedPieces = piecesForTranslation.map(p => ({
+          title: `${translations[idx++]} (${p.title})`,
+          composer: p.composer,
+          notes: translations[idx++],
+        }));
+
+        let translatedIntro: string | undefined;
+        if (englishIntro?.content) {
+          translatedIntro = translations[idx];
+        }
+
+        res.json({
+          intro: translatedIntro,
+          pieces: translatedPieces,
+        });
+      } else {
+        const openai = new OpenAI({
+          apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+          baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+        });
+
+        const sourceData: any = { pieces: piecesForTranslation };
+        if (englishIntro?.content) {
+          sourceData.intro = englishIntro.content;
+        }
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-5-mini",
+          messages: [
+            {
+              role: "system",
+              content: `You are a professional translator specializing in classical music and concert program notes. Translate the following concert program content from English to ${input.targetLanguageLabel}.
 
 Guidelines:
 - Maintain the formal, elegant tone appropriate for concert programs.
@@ -352,22 +407,23 @@ Guidelines:
 - The notes and intro fields should contain properly formatted HTML with <p> tags for paragraphs.
 
 Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${englishIntro?.content ? ' and an "intro" field containing the translated introductory paragraph' : ''}.`,
-          },
-          {
-            role: "user",
-            content: JSON.stringify(sourceData),
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
+            },
+            {
+              role: "user",
+              content: JSON.stringify(sourceData),
+            },
+          ],
+          response_format: { type: "json_object" },
+        });
 
-      const translatedText = response.choices[0]?.message?.content || "{}";
-      const translated = JSON.parse(translatedText);
+        const translatedText = response.choices[0]?.message?.content || "{}";
+        const translated = JSON.parse(translatedText);
 
-      res.json({
-        intro: translated.intro || undefined,
-        pieces: translated.pieces || piecesForTranslation,
-      });
+        res.json({
+          intro: translated.intro || undefined,
+          pieces: translated.pieces || piecesForTranslation,
+        });
+      }
     } catch (err: any) {
       console.error("Translation error:", err);
       if (err instanceof z.ZodError) {

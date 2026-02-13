@@ -168,6 +168,7 @@ export const api = {
       input: z.object({
         targetLanguage: z.string(),
         targetLanguageLabel: z.string(),
+        provider: z.enum(["openai", "google"]).default("openai"),
       }),
       responses: {
         200: z.object({

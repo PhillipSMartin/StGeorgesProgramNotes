@@ -247,7 +247,7 @@ export function useClearAnalytics() {
 
 export function useTranslatePieces() {
   return useMutation({
-    mutationFn: async (data: { targetLanguage: string; targetLanguageLabel: string }) => {
+    mutationFn: async (data: { targetLanguage: string; targetLanguageLabel: string; provider: "openai" | "google" }) => {
       const res = await apiRequest("POST", api.adminPieces.translate.path, data);
       return res.json() as Promise<{ intro?: string; pieces: { title: string; composer: string; notes: string }[] }>;
     },

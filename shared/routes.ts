@@ -183,7 +183,7 @@ export const api = {
           results: z.array(z.object({
             language: z.string(),
             label: z.string(),
-            status: z.enum(["success", "error"]),
+            status: z.enum(["success", "skipped", "published_only", "error"]),
             message: z.string().optional(),
           })),
         }),

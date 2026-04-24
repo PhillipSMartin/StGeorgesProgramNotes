@@ -509,10 +509,29 @@ Return your response as a JSON object with a "pieces" array (each element has "t
         notes: p.notes,
       }));
 
-      const results: { language: string; label: string; status: "success" | "error"; message?: string }[] = [];
+      const results: { language: string; label: string; status: "success" | "skipped" | "published_only" | "error"; message?: string }[] = [];
 
       for (const lang of nonEnglishLangs) {
         try {
+          const existingPieces = await storage.getPiecesForLanguage(lang.code);
+          const publishedPieces = await storage.getPublishedPieces(lang.code);
+
+          // Already fully done — has pieces and they're published
+          if (existingPieces.length > 0 && publishedPieces.length > 0) {
+            results.push({ language: lang.code, label: lang.label, status: "skipped", message: "Already translated and published" });
+            continue;
+          }
+
+          // Has translated content but not yet published — just publish
+          if (existingPieces.length > 0 && publishedPieces.length === 0) {
+            await storage.publishPieces(lang.code);
+            await storage.publishIntro(lang.code);
+            await storage.publishFooter(lang.code);
+            results.push({ language: lang.code, label: lang.label, status: "published_only", message: "Content already translated — published now" });
+            continue;
+          }
+
+          // No content yet — translate, save, and publish
           const translated = await translateContent(
             input.provider,
             lang.code,
@@ -530,41 +549,24 @@ Return your response as a JSON object with a "pieces" array (each element has "t
             await storage.saveFooter(lang.code, translated.footer);
           }
 
-          const existingPieces = await storage.getPiecesForLanguage(lang.code);
           const savedIds = new Set<number>();
 
           for (let i = 0; i < translated.pieces.length; i++) {
             const tp = translated.pieces[i];
-            if (existingPieces[i]) {
-              await storage.updatePiece(existingPieces[i].id, {
-                title: tp.title,
-                composer: tp.composer,
-                notes: tp.notes,
-                pieceOrder: i + 1,
-                published: false,
-              });
-              savedIds.add(existingPieces[i].id);
-            } else {
-              const created = await storage.createPiece({
-                language: lang.code,
-                title: tp.title,
-                composer: tp.composer,
-                notes: tp.notes,
-                pieceOrder: i + 1,
-                published: false,
-              });
-              savedIds.add(created.id);
-            }
-          }
-
-          for (const ep of existingPieces) {
-            if (!savedIds.has(ep.id)) {
-              await storage.deletePiece(ep.id);
-            }
+            const created = await storage.createPiece({
+              language: lang.code,
+              title: tp.title,
+              composer: tp.composer,
+              notes: tp.notes,
+              pieceOrder: i + 1,
+              published: false,
+            });
+            savedIds.add(created.id);
           }
 
           await storage.publishPieces(lang.code);
           await storage.publishIntro(lang.code);
+          await storage.publishFooter(lang.code);
 
           results.push({ language: lang.code, label: lang.label, status: "success" });
         } catch (langErr: any) {

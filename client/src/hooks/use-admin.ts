@@ -272,7 +272,7 @@ export function useTranslateAllPieces() {
   return useMutation({
     mutationFn: async (data: { provider: "openai" | "google" }) => {
       const res = await apiRequest("POST", api.adminPieces.translateAll.path, data);
-      return res.json() as Promise<{ results: { language: string; label: string; status: "success" | "error"; message?: string }[] }>;
+      return res.json() as Promise<{ results: { language: string; label: string; status: "success" | "skipped" | "published_only" | "error"; message?: string }[] }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.adminPieces.list.path] });

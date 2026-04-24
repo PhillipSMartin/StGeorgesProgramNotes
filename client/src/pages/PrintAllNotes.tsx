@@ -13,6 +13,7 @@ type PrintLanguageData = {
   nativeLabel: string;
   dir: string;
   intro: string | null;
+  footer: string | null;
   pieces: { title: string; composer: string; notes: string; pieceOrder: number }[];
 };
 
@@ -124,6 +125,12 @@ export default function PrintAllNotes() {
                     />
                   </div>
                 ))}
+
+                {lang.footer && (
+                  <div className="mt-8 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-600 italic whitespace-pre-line">{lang.footer}</p>
+                  </div>
+                )}
               </div>
             </div>
           ))}

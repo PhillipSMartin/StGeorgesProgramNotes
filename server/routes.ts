@@ -37,6 +37,16 @@ export async function registerRoutes(
     res.json(intro || null);
   });
 
+  // === Public: Footer Route ===
+  app.get(api.footer.get.path, async (req, res) => {
+    const language = req.query.language as string;
+    if (!language) {
+      return res.status(400).json({ message: "Language parameter is required" });
+    }
+    const footer = await storage.getFooter(language);
+    res.json(footer || null);
+  });
+
   // === Public: Pieces Routes (serves published pieces, falls back to all) ===
   app.get(api.pieces.list.path, async (req, res) => {
     const language = req.query.language as string;
@@ -191,12 +201,14 @@ export async function registerRoutes(
       const results = await Promise.all(enabledLangs.map(async (lang) => {
         const pieces = await storage.getPiecesForLanguage(lang.code);
         const intro = await storage.getIntro(lang.code);
+        const footer = await storage.getFooter(lang.code);
         return {
           code: lang.code,
           label: lang.label,
           nativeLabel: lang.nativeLabel,
           dir: lang.dir,
           intro: intro?.content || null,
+          footer: footer?.content || null,
           pieces: pieces
             .sort((a, b) => a.pieceOrder - b.pieceOrder)
             .map(p => ({ title: p.title, composer: p.composer, notes: p.notes, pieceOrder: p.pieceOrder })),
@@ -257,6 +269,10 @@ export async function registerRoutes(
 
       if (input.intro !== undefined) {
         await storage.saveIntro(input.language, input.intro);
+      }
+
+      if (input.footer !== undefined) {
+        await storage.saveFooter(input.language, input.footer);
       }
 
       const savedPieces = [];
@@ -324,6 +340,7 @@ export async function registerRoutes(
     }
     await storage.publishPieces(language);
     await storage.publishIntro(language);
+    await storage.publishFooter(language);
     res.json({ message: `Content published for ${language}` });
   });
 
@@ -334,6 +351,7 @@ export async function registerRoutes(
     }
     await storage.unpublishPieces(language);
     await storage.unpublishIntro(language);
+    await storage.unpublishFooter(language);
     res.json({ message: `Content unpublished for ${language}` });
   });
 

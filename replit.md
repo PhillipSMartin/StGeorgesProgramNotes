@@ -56,6 +56,7 @@ Preferred communication style: Simple, everyday language.
   - `supported_languages` — Languages available for program notes (code, label, native label, direction, enabled flag, sort order)
   - `program_content` — (Legacy) Program notes content by section and language
   - `program_intro` — Optional thematic introduction paragraph per language (content, published, updatedAt; language is unique key)
+  - `program_footer` — Optional attribution/footer text per language, displayed after the pieces (content, published, updatedAt; language is unique key)
   - `program_pieces` — Program pieces with title, composer, notes per language (supports multiple pieces per concert, with pieceOrder, published flag)
   - `content_versions` — Version history for content edits (tracks manual vs AI-generated changes)
   - `tracking_events` — Analytics events (e.g., language selections) with JSONB payload

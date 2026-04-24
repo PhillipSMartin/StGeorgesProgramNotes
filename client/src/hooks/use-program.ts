@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api, type TrackingLogInput } from "@shared/routes";
-import type { ProgramPiece, ProgramIntro } from "@shared/schema";
+import type { ProgramPiece, ProgramIntro, ProgramFooter } from "@shared/schema";
 
 export function useProgramIntro(language: string) {
   return useQuery<ProgramIntro | null>({
@@ -9,6 +9,19 @@ export function useProgramIntro(language: string) {
       const url = `${api.intro.get.path}?language=${encodeURIComponent(language)}`;
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch intro");
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useProgramFooter(language: string) {
+  return useQuery<ProgramFooter | null>({
+    queryKey: [api.footer.get.path, language],
+    queryFn: async () => {
+      const url = `${api.footer.get.path}?language=${encodeURIComponent(language)}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch footer");
       return res.json();
     },
     staleTime: 1000 * 60 * 5,

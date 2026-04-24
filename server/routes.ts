@@ -532,6 +532,8 @@ Return your response as a JSON object with a "pieces" array (each element has "t
             await storage.saveFooter(lang.code, translated.footer);
           }
 
+          await storage.deletePiecesForLanguage(lang.code);
+
           for (let i = 0; i < translated.pieces.length; i++) {
             const tp = translated.pieces[i];
             await storage.createPiece({

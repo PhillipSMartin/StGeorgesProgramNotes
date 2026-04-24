@@ -61,6 +61,7 @@ export interface IStorage {
   createPiece(piece: InsertProgramPiece): Promise<ProgramPiece>;
   updatePiece(id: number, updates: Partial<InsertProgramPiece>): Promise<ProgramPiece | undefined>;
   deletePiece(id: number): Promise<boolean>;
+  deletePiecesForLanguage(language: string): Promise<void>;
   publishPieces(language: string): Promise<void>;
   unpublishPieces(language: string): Promise<void>;
 
@@ -290,6 +291,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(program_pieces.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async deletePiecesForLanguage(language: string): Promise<void> {
+    await db
+      .delete(program_pieces)
+      .where(eq(program_pieces.language, language));
   }
 
   async publishPieces(language: string): Promise<void> {

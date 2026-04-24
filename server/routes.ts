@@ -37,6 +37,16 @@ export async function registerRoutes(
     res.json(intro || null);
   });
 
+  // === Public: Footer Route ===
+  app.get(api.footer.get.path, async (req, res) => {
+    const language = req.query.language as string;
+    if (!language) {
+      return res.status(400).json({ message: "Language parameter is required" });
+    }
+    const footer = await storage.getFooter(language);
+    res.json(footer || null);
+  });
+
   // === Public: Pieces Routes (serves published pieces, falls back to all) ===
   app.get(api.pieces.list.path, async (req, res) => {
     const language = req.query.language as string;
@@ -191,12 +201,14 @@ export async function registerRoutes(
       const results = await Promise.all(enabledLangs.map(async (lang) => {
         const pieces = await storage.getPiecesForLanguage(lang.code);
         const intro = await storage.getIntro(lang.code);
+        const footer = await storage.getFooter(lang.code);
         return {
           code: lang.code,
           label: lang.label,
           nativeLabel: lang.nativeLabel,
           dir: lang.dir,
           intro: intro?.content || null,
+          footer: footer?.content || null,
           pieces: pieces
             .sort((a, b) => a.pieceOrder - b.pieceOrder)
             .map(p => ({ title: p.title, composer: p.composer, notes: p.notes, pieceOrder: p.pieceOrder })),
@@ -257,6 +269,10 @@ export async function registerRoutes(
 
       if (input.intro !== undefined) {
         await storage.saveIntro(input.language, input.intro);
+      }
+
+      if (input.footer !== undefined) {
+        await storage.saveFooter(input.language, input.footer);
       }
 
       const savedPieces = [];
@@ -324,6 +340,7 @@ export async function registerRoutes(
     }
     await storage.publishPieces(language);
     await storage.publishIntro(language);
+    await storage.publishFooter(language);
     res.json({ message: `Content published for ${language}` });
   });
 
@@ -334,6 +351,7 @@ export async function registerRoutes(
     }
     await storage.unpublishPieces(language);
     await storage.unpublishIntro(language);
+    await storage.unpublishFooter(language);
     res.json({ message: `Content unpublished for ${language}` });
   });
 
@@ -343,7 +361,8 @@ export async function registerRoutes(
     targetLanguageLabel: string,
     englishPieces: { title: string; composer: string; notes: string }[],
     englishIntro: { content: string } | null | undefined,
-  ): Promise<{ intro?: string; pieces: { title: string; composer: string; notes: string }[] }> {
+    englishFooter: { content: string } | null | undefined,
+  ): Promise<{ intro?: string; footer?: string; pieces: { title: string; composer: string; notes: string }[] }> {
     if (provider === "google") {
       const apiKey = process.env.GOOGLE_CLOUD_TRANSLATION_API_KEY;
       if (!apiKey) {
@@ -357,6 +376,9 @@ export async function registerRoutes(
       }
       if (englishIntro?.content) {
         textsToTranslate.push(englishIntro.content);
+      }
+      if (englishFooter?.content) {
+        textsToTranslate.push(englishFooter.content);
       }
 
       const googleRes = await fetch(
@@ -391,10 +413,15 @@ export async function registerRoutes(
 
       let translatedIntro: string | undefined;
       if (englishIntro?.content) {
-        translatedIntro = translations[idx];
+        translatedIntro = translations[idx++];
       }
 
-      return { intro: translatedIntro, pieces: translatedPieces };
+      let translatedFooter: string | undefined;
+      if (englishFooter?.content) {
+        translatedFooter = translations[idx];
+      }
+
+      return { intro: translatedIntro, footer: translatedFooter, pieces: translatedPieces };
     } else {
       const openai = new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -411,6 +438,16 @@ export async function registerRoutes(
       if (englishIntro?.content) {
         sourceData.intro = englishIntro.content;
       }
+      if (englishFooter?.content) {
+        sourceData.footer = englishFooter.content;
+      }
+
+      const extraFields = [
+        englishIntro?.content ? '"intro" field containing the translated introductory paragraph' : null,
+        englishFooter?.content ? '"footer" field containing the translated attribution/footer text (plain text, no HTML)' : null,
+      ].filter(Boolean);
+
+      const extraFieldsText = extraFields.length > 0 ? ` and ${extraFields.join(' and ')}` : '';
 
       const response = await openai.chat.completions.create({
         model: "gpt-5-mini",
@@ -426,8 +463,9 @@ Guidelines:
 - Preserve opus numbers (e.g., Op. 26, K. 626).
 - When a piece title appears within the notes text, use ONLY the translated title without any English parenthetical. The English original should only appear in the "title" field, never repeated inside "notes".
 - The notes and intro fields should contain properly formatted HTML with <p> tags for paragraphs.
+- The footer field should be plain text (no HTML tags).
 
-Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${englishIntro?.content ? ' and an "intro" field containing the translated introductory paragraph' : ''}.`,
+Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${extraFieldsText}.`,
           },
           {
             role: "user",
@@ -442,6 +480,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
 
       return {
         intro: translated.intro || undefined,
+        footer: translated.footer || undefined,
         pieces: translated.pieces || piecesForTranslation,
       };
     }
@@ -457,6 +496,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
       }
 
       const englishIntro = await storage.getIntro("en");
+      const englishFooter = await storage.getFooter("en");
       const allLanguages = await storage.getSupportedLanguages();
       const nonEnglishLangs = allLanguages.filter(l => l.code !== "en" && l.enabled);
 
@@ -481,10 +521,15 @@ Return your response as a JSON object with a "pieces" array (each element has "t
             lang.label,
             piecesForTranslation,
             englishIntro,
+            englishFooter,
           );
 
           if (translated.intro) {
             await storage.saveIntro(lang.code, translated.intro);
+          }
+
+          if (translated.footer) {
+            await storage.saveFooter(lang.code, translated.footer);
           }
 
           for (let i = 0; i < translated.pieces.length; i++) {
@@ -501,6 +546,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
 
           await storage.publishPieces(lang.code);
           await storage.publishIntro(lang.code);
+          await storage.publishFooter(lang.code);
 
           results.push({ language: lang.code, label: lang.label, status: "success" });
         } catch (langErr: any) {
@@ -529,6 +575,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
       }
 
       const englishIntro = await storage.getIntro("en");
+      const englishFooter = await storage.getFooter("en");
 
       const piecesForTranslation = englishPieces.map(p => ({
         title: p.title,
@@ -542,6 +589,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
         input.targetLanguageLabel,
         piecesForTranslation,
         englishIntro,
+        englishFooter,
       );
 
       res.json(result);

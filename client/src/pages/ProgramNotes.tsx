@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useRoute, Link } from "wouter";
-import { useProgramIntro, useProgramPieces } from "@/hooks/use-program";
+import { useProgramIntro, useProgramFooter, useProgramPieces } from "@/hooks/use-program";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import type { SupportedLanguage } from "@shared/schema";
@@ -26,6 +26,7 @@ export default function ProgramNotes() {
   const isRTL = language?.dir === "rtl";
 
   const { data: introData } = useProgramIntro(langCode);
+  const { data: footerData } = useProgramFooter(langCode);
   const { data: pieces, isLoading } = useProgramPieces(langCode);
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function ProgramNotes() {
   const displayPieces = pieces || [];
   const hasPublishedPieces = displayPieces.some(p => p.published);
   const introContent = introData?.content && (introData.published || !hasPublishedPieces) ? introData.content : null;
+  const footerContent = footerData?.content && (footerData.published || !hasPublishedPieces) ? footerData.content : null;
 
   return (
     <div className={cn(
@@ -142,6 +144,20 @@ export default function ProgramNotes() {
                 />
               </motion.article>
             ))}
+
+            {footerContent && footerContent.trim() && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6, duration: 0.6 }}
+                className="pt-8 border-t border-border/40"
+                data-testid="program-footer"
+              >
+                <p className="text-sm text-muted-foreground/70 italic font-sans text-center whitespace-pre-line">
+                  {footerContent}
+                </p>
+              </motion.div>
+            )}
 
           </div>
         )}

@@ -115,7 +115,7 @@ export default function PrintAllNotes() {
                       <div className="h-px bg-gray-200 mb-8" />
                     )}
                     <div className={`mb-4 ${lang.dir === "rtl" ? "text-right" : "text-left"}`}>
-                      <h3 className="text-lg font-bold text-black">{piece.title}</h3>
+                      <h3 className="text-lg font-bold text-black whitespace-pre-line">{piece.title}</h3>
                       <p className="text-sm text-gray-600 italic">{piece.composer}</p>
                     </div>
                     <div

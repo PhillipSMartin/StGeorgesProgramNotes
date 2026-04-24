@@ -17,6 +17,7 @@ import {
 } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -246,11 +247,18 @@ function PieceEditor({
       <CardContent className="space-y-4">
         <div>
           <label className="text-sm font-medium text-muted-foreground mb-1 block">Title</label>
-          <Input
+          <Textarea
             value={piece.title}
             onChange={(e) => onUpdate("title", e.target.value)}
-            placeholder="Enter piece title..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+              }
+            }}
+            placeholder="Enter piece title… (Shift+Enter for a new line)"
             dir={isRTL ? "rtl" : "ltr"}
+            rows={2}
+            className="resize-none"
             data-testid={`input-piece-title-${index}`}
           />
         </div>
@@ -711,7 +719,7 @@ export default function ContentEditor() {
             {pieces.map((piece, index) => (
               <div key={index} className="space-y-3">
                 {index > 0 && <Separator />}
-                <h2 className="text-xl font-bold" data-testid={`preview-title-${index}`}>
+                <h2 className="text-xl font-bold whitespace-pre-line" data-testid={`preview-title-${index}`}>
                   {piece.title || "Untitled Piece"}
                 </h2>
                 <p className="text-base text-muted-foreground italic" data-testid={`preview-composer-${index}`}>

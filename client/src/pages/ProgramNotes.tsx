@@ -127,7 +127,7 @@ export default function ProgramNotes() {
                 )}
 
                 <div className="text-center mb-6">
-                  <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2" data-testid={`text-piece-title-${piece.id}`}>
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 whitespace-pre-line" data-testid={`text-piece-title-${piece.id}`}>
                     {piece.title}
                   </h2>
                   <p className="text-lg text-primary font-medium italic" data-testid={`text-piece-composer-${piece.id}`}>

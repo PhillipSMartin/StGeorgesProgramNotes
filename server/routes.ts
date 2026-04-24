@@ -361,7 +361,8 @@ export async function registerRoutes(
     targetLanguageLabel: string,
     englishPieces: { title: string; composer: string; notes: string }[],
     englishIntro: { content: string } | null | undefined,
-  ): Promise<{ intro?: string; pieces: { title: string; composer: string; notes: string }[] }> {
+    englishFooter: { content: string } | null | undefined,
+  ): Promise<{ intro?: string; footer?: string; pieces: { title: string; composer: string; notes: string }[] }> {
     if (provider === "google") {
       const apiKey = process.env.GOOGLE_CLOUD_TRANSLATION_API_KEY;
       if (!apiKey) {
@@ -375,6 +376,9 @@ export async function registerRoutes(
       }
       if (englishIntro?.content) {
         textsToTranslate.push(englishIntro.content);
+      }
+      if (englishFooter?.content) {
+        textsToTranslate.push(englishFooter.content);
       }
 
       const googleRes = await fetch(
@@ -409,10 +413,15 @@ export async function registerRoutes(
 
       let translatedIntro: string | undefined;
       if (englishIntro?.content) {
-        translatedIntro = translations[idx];
+        translatedIntro = translations[idx++];
       }
 
-      return { intro: translatedIntro, pieces: translatedPieces };
+      let translatedFooter: string | undefined;
+      if (englishFooter?.content) {
+        translatedFooter = translations[idx];
+      }
+
+      return { intro: translatedIntro, footer: translatedFooter, pieces: translatedPieces };
     } else {
       const openai = new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -429,6 +438,15 @@ export async function registerRoutes(
       if (englishIntro?.content) {
         sourceData.intro = englishIntro.content;
       }
+      if (englishFooter?.content) {
+        sourceData.footer = englishFooter.content;
+      }
+
+      const hasExtra = englishIntro?.content || englishFooter?.content;
+      const extraFields = [
+        englishIntro?.content ? '"intro" field containing the translated introductory paragraph' : null,
+        englishFooter?.content ? '"footer" field containing the translated footer/attribution text' : null,
+      ].filter(Boolean).join(' and ');
 
       const response = await openai.chat.completions.create({
         model: "gpt-5-mini",
@@ -444,8 +462,9 @@ Guidelines:
 - Preserve opus numbers (e.g., Op. 26, K. 626).
 - When a piece title appears within the notes text, use ONLY the translated title without any English parenthetical. The English original should only appear in the "title" field, never repeated inside "notes".
 - The notes and intro fields should contain properly formatted HTML with <p> tags for paragraphs.
+- The footer field is plain text (no HTML).
 
-Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${englishIntro?.content ? ' and an "intro" field containing the translated introductory paragraph' : ''}.`,
+Return your response as a JSON object with a "pieces" array (each element has "title", "composer", and "notes" fields)${hasExtra ? ` and ${extraFields}` : ''}.`,
           },
           {
             role: "user",
@@ -460,6 +479,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
 
       return {
         intro: translated.intro || undefined,
+        footer: translated.footer || undefined,
         pieces: translated.pieces || piecesForTranslation,
       };
     }
@@ -475,6 +495,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
       }
 
       const englishIntro = await storage.getIntro("en");
+      const englishFooter = await storage.getFooter("en");
       const allLanguages = await storage.getSupportedLanguages();
       const nonEnglishLangs = allLanguages.filter(l => l.code !== "en" && l.enabled);
 
@@ -498,10 +519,15 @@ Return your response as a JSON object with a "pieces" array (each element has "t
             lang.label,
             piecesForTranslation,
             englishIntro,
+            englishFooter,
           );
 
           if (translated.intro) {
             await storage.saveIntro(lang.code, translated.intro);
+          }
+
+          if (translated.footer) {
+            await storage.saveFooter(lang.code, translated.footer);
           }
 
           const existingPieces = await storage.getPiecesForLanguage(lang.code);
@@ -567,6 +593,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
       }
 
       const englishIntro = await storage.getIntro("en");
+      const englishFooter = await storage.getFooter("en");
 
       const piecesForTranslation = englishPieces.map(p => ({
         title: p.title,
@@ -580,6 +607,7 @@ Return your response as a JSON object with a "pieces" array (each element has "t
         input.targetLanguageLabel,
         piecesForTranslation,
         englishIntro,
+        englishFooter,
       );
 
       res.json(result);

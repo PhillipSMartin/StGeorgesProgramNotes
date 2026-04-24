@@ -562,6 +562,9 @@ export default function ContentEditor() {
         if (result.intro) {
           setIntroContent(result.intro);
         }
+        if (result.footer) {
+          setFooterContent(result.footer);
+        }
         setHasUnsavedChanges(true);
         toast({ title: "Translation Complete", description: "AI translation loaded. Review and save when ready." });
       }

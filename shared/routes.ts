@@ -202,6 +202,7 @@ export const api = {
       responses: {
         200: z.object({
           intro: z.string().optional(),
+          footer: z.string().optional(),
           pieces: z.array(z.object({
             title: z.string(),
             composer: z.string(),

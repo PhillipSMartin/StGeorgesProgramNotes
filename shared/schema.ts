@@ -57,19 +57,6 @@ export const insertProgramIntroSchema = createInsertSchema(program_intro).omit({
 export type ProgramIntro = typeof program_intro.$inferSelect;
 export type InsertProgramIntro = z.infer<typeof insertProgramIntroSchema>;
 
-// === PROGRAM FOOTER (attribution info after pieces) ===
-export const program_footer = pgTable("program_footer", {
-  id: serial("id").primaryKey(),
-  language: text("language").notNull().unique(),
-  content: text("content").notNull().default(""),
-  published: boolean("published").notNull().default(false),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const insertProgramFooterSchema = createInsertSchema(program_footer).omit({ id: true, updatedAt: true });
-export type ProgramFooter = typeof program_footer.$inferSelect;
-export type InsertProgramFooter = z.infer<typeof insertProgramFooterSchema>;
-
 // === PROGRAM PIECES (multi-piece support) ===
 export const program_pieces = pgTable("program_pieces", {
   id: serial("id").primaryKey(),

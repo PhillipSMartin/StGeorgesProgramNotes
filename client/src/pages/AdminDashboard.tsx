@@ -294,25 +294,16 @@ export default function AdminDashboard() {
       toast({ title: "No Languages", description: "No enabled non-English languages to translate.", variant: "destructive" });
       return;
     }
-    if (!confirm(`This will translate and publish any languages that haven't been done yet (${nonEnglishEnabled.length} language(s) total). Already-translated languages will be skipped. Continue?`)) return;
+    if (!confirm(`This will translate, save, and publish content for ${nonEnglishEnabled.length} language(s) using ${translateAllProvider === "openai" ? "OpenAI" : "Google Translate"}. Continue?`)) return;
     try {
       const result = await translateAllMutation.mutateAsync({ provider: translateAllProvider });
       const successCount = result.results.filter(r => r.status === "success").length;
-      const publishedOnlyCount = result.results.filter(r => r.status === "published_only").length;
-      const skippedCount = result.results.filter(r => r.status === "skipped").length;
       const errorCount = result.results.filter(r => r.status === "error").length;
-
-      const parts: string[] = [];
-      if (successCount > 0) parts.push(`${successCount} translated & published`);
-      if (publishedOnlyCount > 0) parts.push(`${publishedOnlyCount} published (already translated)`);
-      if (skippedCount > 0) parts.push(`${skippedCount} skipped (already done)`);
-      if (errorCount > 0) parts.push(`${errorCount} failed`);
-
       if (errorCount === 0) {
-        toast({ title: "Translation Run Complete", description: parts.join(", ") + "." });
+        toast({ title: "All Translations Complete", description: `Successfully translated, saved, and published ${successCount} language(s).` });
       } else {
         const failedLangs = result.results.filter(r => r.status === "error").map(r => r.label).join(", ");
-        toast({ title: "Translation Run Partially Complete", description: `${parts.join(", ")}. Failed: ${failedLangs}.`, variant: "destructive" });
+        toast({ title: "Translations Partially Complete", description: `${successCount} succeeded, ${errorCount} failed (${failedLangs}).`, variant: "destructive" });
       }
     } catch (error: any) {
       toast({ title: "Translation Failed", description: error.message || "Failed to translate all languages", variant: "destructive" });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTrackingEventSchema, insertSupportedLanguageSchema, program_intro, program_footer, program_pieces, tracking_events, supported_languages } from './schema';
+import { insertTrackingEventSchema, insertSupportedLanguageSchema, program_intro, program_pieces, tracking_events, supported_languages } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -95,15 +95,6 @@ export const api = {
       },
     },
   },
-  footer: {
-    get: {
-      method: 'GET' as const,
-      path: '/api/footer',
-      responses: {
-        200: z.custom<typeof program_footer.$inferSelect>().nullable(),
-      },
-    },
-  },
   pieces: {
     list: {
       method: 'GET' as const,
@@ -128,7 +119,6 @@ export const api = {
       input: z.object({
         language: z.string(),
         intro: z.string().optional(),
-        footer: z.string().optional(),
         pieces: z.array(z.object({
           id: z.number().optional(),
           title: z.string(),
@@ -183,7 +173,7 @@ export const api = {
           results: z.array(z.object({
             language: z.string(),
             label: z.string(),
-            status: z.enum(["success", "skipped", "published_only", "error"]),
+            status: z.enum(["success", "error"]),
             message: z.string().optional(),
           })),
         }),
@@ -202,7 +192,6 @@ export const api = {
       responses: {
         200: z.object({
           intro: z.string().optional(),
-          footer: z.string().optional(),
           pieces: z.array(z.object({
             title: z.string(),
             composer: z.string(),
@@ -225,7 +214,6 @@ export const api = {
           nativeLabel: z.string(),
           dir: z.string(),
           intro: z.string().nullable(),
-          footer: z.string().nullable(),
           pieces: z.array(z.object({
             title: z.string(),
             composer: z.string(),

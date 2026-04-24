@@ -8,7 +8,6 @@ import {
   useAdminSession,
   useAdminLanguages,
   useAdminIntro,
-  useAdminFooter,
   useAdminPieces,
   useSavePieces,
   useDeletePiece,
@@ -48,7 +47,6 @@ import {
   ChevronDown,
   ChevronUp,
   BookOpen,
-  User,
 } from "lucide-react";
 import {
   Dialog,
@@ -342,33 +340,6 @@ function IntroEditor({
   );
 }
 
-function FooterEditor({ content, isRTL, onUpdate }: { content: string; isRTL: boolean; onUpdate: (value: string) => void }) {
-  return (
-    <Card data-testid="card-footer">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <User className="w-4 h-4 text-primary" />
-          <CardTitle className="text-lg">Footer / Attribution</CardTitle>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Optional note displayed after the program pieces — e.g. who wrote the notes
-        </p>
-      </CardHeader>
-      <CardContent>
-        <Textarea
-          value={content}
-          onChange={(e) => onUpdate(e.target.value)}
-          placeholder="e.g. Program notes written by Jane Smith"
-          dir={isRTL ? "rtl" : "ltr"}
-          rows={3}
-          className="resize-none"
-          data-testid="textarea-footer"
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function ContentEditor() {
   const [_, setLocation] = useLocation();
   const [match, params] = useRoute("/admin/content/:lang");
@@ -377,7 +348,6 @@ export default function ContentEditor() {
   const { data: session, isLoading: sessionLoading } = useAdminSession();
   const { data: languages } = useAdminLanguages();
   const { data: introData } = useAdminIntro(langCode);
-  const { data: footerData } = useAdminFooter(langCode);
   const { data: piecesData, isLoading: piecesLoading } = useAdminPieces(langCode);
   const savePiecesMutation = useSavePieces();
   const deletePieceMutation = useDeletePiece();
@@ -387,7 +357,6 @@ export default function ContentEditor() {
   const { toast } = useToast();
 
   const [introContent, setIntroContent] = useState("");
-  const [footerContent, setFooterContent] = useState("");
   const [pieces, setPieces] = useState<PieceFormData[]>([
     { title: "", composer: "", notes: "", pieceOrder: 1 },
   ]);
@@ -407,7 +376,6 @@ export default function ContentEditor() {
   }, [session?.authenticated, sessionLoading, setLocation]);
 
   const [introInitialized, setIntroInitialized] = useState(false);
-  const [footerInitialized, setFooterInitialized] = useState(false);
 
   useEffect(() => {
     if (piecesData && !initialized) {
@@ -435,16 +403,8 @@ export default function ContentEditor() {
   }, [introData, introInitialized]);
 
   useEffect(() => {
-    if (footerData !== undefined && !footerInitialized) {
-      setFooterContent(footerData?.content || "");
-      setFooterInitialized(true);
-    }
-  }, [footerData, footerInitialized]);
-
-  useEffect(() => {
     setInitialized(false);
     setIntroInitialized(false);
-    setFooterInitialized(false);
   }, [langCode]);
 
   const updatePiece = useCallback((index: number, field: keyof PieceFormData, value: string) => {
@@ -499,7 +459,6 @@ export default function ContentEditor() {
       const result = await savePiecesMutation.mutateAsync({
         language: langCode,
         intro: introContent,
-        footer: footerContent,
         pieces: pieces.map((p, i) => ({
           id: p.id,
           title: p.title,
@@ -561,9 +520,6 @@ export default function ContentEditor() {
         })));
         if (result.intro) {
           setIntroContent(result.intro);
-        }
-        if (result.footer) {
-          setFooterContent(result.footer);
         }
         setHasUnsavedChanges(true);
         toast({ title: "Translation Complete", description: "AI translation loaded. Review and save when ready." });
@@ -738,14 +694,6 @@ export default function ContentEditor() {
               </Button>
             </div>
 
-            <FooterEditor
-              content={footerContent}
-              isRTL={isRTL ?? false}
-              onUpdate={(value) => {
-                setFooterContent(value);
-                setHasUnsavedChanges(true);
-              }}
-            />
           </div>
         )}
       </main>
@@ -785,11 +733,6 @@ export default function ContentEditor() {
                 />
               </div>
             ))}
-            {footerContent.trim() && (
-              <div className="pt-4 mt-4 border-t border-border" data-testid="preview-footer">
-                <p className="text-sm text-muted-foreground italic whitespace-pre-line">{footerContent}</p>
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>

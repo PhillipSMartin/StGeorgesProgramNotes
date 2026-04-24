@@ -2,7 +2,6 @@ import { db } from "./db";
 import {
   program_content,
   program_intro,
-  program_footer,
   program_pieces,
   content_versions,
   tracking_events,
@@ -13,8 +12,6 @@ import {
   type InsertProgramContent,
   type ProgramIntro,
   type InsertProgramIntro,
-  type ProgramFooter,
-  type InsertProgramFooter,
   type ProgramPiece,
   type InsertProgramPiece,
   type ContentVersion,
@@ -47,12 +44,6 @@ export interface IStorage {
   saveIntro(language: string, content: string): Promise<ProgramIntro>;
   publishIntro(language: string): Promise<void>;
   unpublishIntro(language: string): Promise<void>;
-
-  // Program footer
-  getFooter(language: string): Promise<ProgramFooter | undefined>;
-  saveFooter(language: string, content: string): Promise<ProgramFooter>;
-  publishFooter(language: string): Promise<void>;
-  unpublishFooter(language: string): Promise<void>;
 
   // Program pieces (multi-piece)
   getPiecesForLanguage(language: string): Promise<ProgramPiece[]>;
@@ -200,46 +191,6 @@ export class DatabaseStorage implements IStorage {
       .update(program_intro)
       .set({ published: false, updatedAt: new Date() })
       .where(eq(program_intro.language, language));
-  }
-
-  // Program footer
-  async getFooter(language: string): Promise<ProgramFooter | undefined> {
-    const [footer] = await db
-      .select()
-      .from(program_footer)
-      .where(eq(program_footer.language, language));
-    return footer;
-  }
-
-  async saveFooter(language: string, content: string): Promise<ProgramFooter> {
-    const existing = await this.getFooter(language);
-    if (existing) {
-      const [updated] = await db
-        .update(program_footer)
-        .set({ content, published: false, updatedAt: new Date() })
-        .where(eq(program_footer.language, language))
-        .returning();
-      return updated;
-    }
-    const [created] = await db
-      .insert(program_footer)
-      .values({ language, content, published: false })
-      .returning();
-    return created;
-  }
-
-  async publishFooter(language: string): Promise<void> {
-    await db
-      .update(program_footer)
-      .set({ published: true, updatedAt: new Date() })
-      .where(eq(program_footer.language, language));
-  }
-
-  async unpublishFooter(language: string): Promise<void> {
-    await db
-      .update(program_footer)
-      .set({ published: false, updatedAt: new Date() })
-      .where(eq(program_footer.language, language));
   }
 
   // Program pieces (multi-piece support)

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { api, type AdminLoginInput, type AdminChangePasswordInput } from "@shared/routes";
-import type { SupportedLanguage, InsertSupportedLanguage, ProgramPiece, ProgramIntro, ProgramFooter } from "@shared/schema";
+import type { SupportedLanguage, InsertSupportedLanguage, ProgramPiece, ProgramIntro } from "@shared/schema";
 
 export function useAdminSession() {
   return useQuery<{ authenticated: boolean }>({
@@ -127,18 +127,6 @@ export function useAdminIntro(language: string) {
   });
 }
 
-export function useAdminFooter(language: string) {
-  return useQuery<ProgramFooter | null>({
-    queryKey: [api.footer.get.path, language],
-    queryFn: async () => {
-      const res = await fetch(`${api.footer.get.path}?language=${encodeURIComponent(language)}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch footer");
-      return res.json();
-    },
-    enabled: !!language,
-  });
-}
-
 export function useAdminPieces(language: string) {
   return useQuery<ProgramPiece[]>({
     queryKey: [api.adminPieces.list.path, language],
@@ -154,7 +142,7 @@ export function useAdminPieces(language: string) {
 export function useSavePieces() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { language: string; intro?: string; footer?: string; pieces: { id?: number; title: string; composer: string; notes: string; pieceOrder: number }[] }) => {
+    mutationFn: async (data: { language: string; intro?: string; pieces: { id?: number; title: string; composer: string; notes: string; pieceOrder: number }[] }) => {
       const res = await apiRequest("POST", api.adminPieces.save.path, data);
       return res.json();
     },
@@ -162,7 +150,6 @@ export function useSavePieces() {
       queryClient.invalidateQueries({ queryKey: [api.adminPieces.list.path, variables.language] });
       queryClient.invalidateQueries({ queryKey: [api.pieces.list.path, variables.language] });
       queryClient.invalidateQueries({ queryKey: [api.intro.get.path, variables.language] });
-      queryClient.invalidateQueries({ queryKey: [api.footer.get.path, variables.language] });
     },
   });
 }
@@ -262,7 +249,7 @@ export function useTranslatePieces() {
   return useMutation({
     mutationFn: async (data: { targetLanguage: string; targetLanguageLabel: string; provider: "openai" | "google" }) => {
       const res = await apiRequest("POST", api.adminPieces.translate.path, data);
-      return res.json() as Promise<{ intro?: string; pieces: { title: string; composer: string; notes: string }[] }>;
+      return res.json() as Promise<{ intro?: string; pieces: { title: string; composer: string; notes: string }[]; }>;
     },
   });
 }
@@ -272,7 +259,7 @@ export function useTranslateAllPieces() {
   return useMutation({
     mutationFn: async (data: { provider: "openai" | "google" }) => {
       const res = await apiRequest("POST", api.adminPieces.translateAll.path, data);
-      return res.json() as Promise<{ results: { language: string; label: string; status: "success" | "skipped" | "published_only" | "error"; message?: string }[] }>;
+      return res.json() as Promise<{ results: { language: string; label: string; status: "success" | "error"; message?: string }[] }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.adminPieces.list.path] });

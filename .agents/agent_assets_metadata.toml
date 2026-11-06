@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "V-PA_A8HpuAogvuf8KvnK"
+uri = "file://admin-guide.pdf"
+type = "pdf"
+title = "Admin Portal Guide PDF"
+description = "A printable four-page guide covering sign-in, editing, translation, publishing, languages, printing, analytics, and password changes."
+logical_id = "853e75b1-0bdb-4e5d-94f1-49bbc3d1753e"
+content_hash = "sha256:ef465480356eede4fc063d17dee793cff97d5ae53d76099e75871cf537f314d6"
+size = 98101
+mtime_ms = 1793975982682
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:60bb2ffc-f6d1-4d9d-b575-19bf8c9680b9/853e75b1-0bdb-4e5d-94f1-49bbc3d1753e/89c9f321-d9b0-48fa-946f-b89a9f7bf5ac"
+storage_version_token = "1793976011772608"
+content_type = "application/pdf"

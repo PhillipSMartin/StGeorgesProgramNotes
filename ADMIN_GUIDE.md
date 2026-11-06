@@ -4,7 +4,7 @@ This guide is for people who are new to the St. George's Choral Society program-
 
 ## 1. Sign in
 
-1. Open your site's address and add `/admin` to the end. For example: `https://your-site.example/admin`.
+1. Open the admin portal at [https://program-notes-display--phillipmartin2.replit.app/admin](https://program-notes-display--phillipmartin2.replit.app/admin).
 2. Enter the admin password and select **Sign In**.
 3. You should arrive at the **Admin Portal** dashboard.
 

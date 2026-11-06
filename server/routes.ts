@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
+import { readFile } from "node:fs/promises";
 import { storage } from "./storage";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
@@ -26,6 +27,15 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  app.get("/api/admin/guide", requireAdmin, async (_req, res) => {
+    try {
+      const guide = await readFile("ADMIN_GUIDE.md", "utf8");
+      res.type("text/markdown").send(guide);
+    } catch {
+      res.status(404).json({ message: "Admin guide not found" });
+    }
+  });
 
   // === Public: Intro Route (returns intro for a language, always returns data for admin usage) ===
   app.get(api.intro.get.path, async (req, res) => {

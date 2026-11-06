@@ -33,6 +33,7 @@ import {
   Loader2,
   Globe,
   Printer,
+  BookOpen,
 } from "lucide-react";
 import {
   Dialog,
@@ -321,6 +322,15 @@ export default function AdminDashboard() {
             <h1 className="font-serif text-lg font-bold" data-testid="text-admin-dashboard-title">Admin Portal</h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open("/api/admin/guide", "_blank", "noopener,noreferrer")}
+              data-testid="button-admin-guide"
+            >
+              <BookOpen className="w-4 h-4 mr-1" />
+              Admin Guide
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => setLocation("/")} data-testid="button-view-site">
               <ChevronLeft className="w-4 h-4 mr-1" />
               View Site

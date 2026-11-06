@@ -7,6 +7,7 @@ import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import bcrypt from "bcryptjs";
 import OpenAI from "openai";
+import MarkdownIt from "markdown-it";
 
 declare module "express-session" {
   interface SessionData {
@@ -31,7 +32,38 @@ export async function registerRoutes(
   app.get("/api/admin/guide", requireAdmin, async (_req, res) => {
     try {
       const guide = await readFile("ADMIN_GUIDE.md", "utf8");
-      res.type("text/markdown").send(guide);
+      const renderedGuide = new MarkdownIt({ html: false, linkify: true }).render(guide);
+      res.type("html").send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Portal Guide</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #f7f5f1; color: #292326; font: 16px/1.65 Arial, Helvetica, sans-serif; }
+    main { max-width: 820px; margin: 24px auto; padding: 44px 56px; background: #fff; border: 1px solid #e6dfd7; border-radius: 12px; box-shadow: 0 8px 28px #35202b12; }
+    .back-link { display: inline-block; margin-bottom: 24px; color: #542b3b; font-size: 14px; font-weight: 600; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    h1 { margin: 0 0 20px; padding-bottom: 14px; border-bottom: 3px solid #c5a45d; color: #542b3b; font: bold 34px/1.2 Georgia, serif; }
+    h2 { margin: 34px 0 12px; color: #542b3b; font: bold 24px/1.3 Georgia, serif; }
+    h3 { margin: 24px 0 8px; color: #704a54; font-size: 18px; }
+    p { margin: 8px 0 14px; }
+    ul, ol { padding-left: 28px; margin: 8px 0 18px; }
+    li { margin: 0 0 7px; padding-left: 3px; }
+    strong { color: #452936; }
+    a { color: #542b3b; overflow-wrap: anywhere; }
+    @media (max-width: 600px) { body { padding: 10px; } main { margin: 10px auto; padding: 26px 20px; } h1 { font-size: 28px; } h2 { font-size: 21px; } }
+    @media print { body { padding: 0; background: #fff; } main { max-width: none; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; } .back-link { display: none; } h2, h3 { break-after: avoid; } }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back-link" href="/admin/dashboard">← Back to Admin Portal</a>
+    ${renderedGuide}
+  </main>
+</body>
+</html>`);
     } catch {
       res.status(404).json({ message: "Admin guide not found" });
     }
